@@ -2,6 +2,9 @@ import java.io.*;
 import java.util.*;
 
 public class HMM {
+	// Define where input files come from. Simple is the boring file, brown is the complex file.
+	static String textFolder = "inputs/ps5/";
+	static String textSubject = "simple";
 	
 //	currStates = { start }
 //	currScores = map { start=0 }
@@ -23,43 +26,39 @@ public class HMM {
 	public static void main(String[] args) {
 		
 		try {
-			HashMap tagMap = new HashMap<String, Integer>();
-			HashMap allStates = new HashMap<HashMap<String, String>, Double>();
+			// Create bufferedReaders training files
+			BufferedReader trainSentences = new BufferedReader(new FileReader(textFolder + textSubject + "-train-sentences.txt"));
+			BufferedReader trainTags = new BufferedReader(new FileReader(textFolder + textSubject + "-train-tags.txt"));
+			
+			// Generate all required data structures for training
+			HashMap POSWords = new HashMap<String, HashMap<String, Integer>>(); // Inputs POS, get out HashMap of Words with # of times used as POS
+			AdjacencyMapGraph POSTransitions = new AdjacencyMapGraph<String, Integer>(); // Inputs POS, gets # of times it transitions to other POS
+			
+			// Read in all words to parts of speech map.
+			String line;
+			while ((line = trainTags.readLine()) != null) {
+				String[] splitLine = line.split(" ");
+				for(int i = 0; i < splitLine.length; i++) {
+					POSTransitions.setLabel((i, (Integer) ((int)(POSTransitions.get(i)) + (Integer)1));
+				}
+			}
+			
+			trainSentences.close();
+			trainTags.close();
+			
+			
+			// Create bufferedReaders for testing files
+			BufferedReader testSentences = new BufferedReader(new FileReader(textFolder + textSubject + "-test-sentences.txt"));
+			BufferedReader testTags = new BufferedReader(new FileReader(textFolder + textSubject + "-test-tags.txt"));
+			
+			// Create required data structures for testing files
 			ArrayList backtraces = new ArrayList<String>();
+			HashMap currentScores = new HashMap<String, Integer>();
+			HashMap nextScores = new HashMap<String, Integer>();
 			
-			BufferedReader sentenceFile = new BufferedReader(new FileReader("ps5inputs/simple-train-sentences.txt"));
-
-			int k = sentenceFile.read();
-			String sentenceFileString = new String();
-			while(k != -1) {
-				char nextChar = (char) k;
-				sentenceFileString += nextChar;
-				k = sentenceFile.read();
-			}
-			String[] wordArray = sentenceFileString.split(" ");
-			
-			BufferedReader tagFile = new BufferedReader(new FileReader("ps5inputs/simple-train-tags.txt"));
-
-			int l = tagFile.read();
-			String tagFileString = new String();
-			while(l != -1) {
-				char nextChar = (char) l;
-				tagFileString += nextChar;
-				l = tagFile.read();
-			}
-			String[] tagArray = tagFileString.split(" ");
-
-			for(String i: tagArray) {
-				if(tagMap.containsKey(i)) {
-					tagMap.put(i, (Integer) (int)(tagMap.get(i)) + 1);
-				}
-				else{
-					tagMap.put(i, 0);
-				}
-			}
-			
-			sentenceFile.close();
-			tagFile.close();
+			// Close testing files
+			testSentences.close();
+			testTags.close();
 		} 
 		
 		catch (FileNotFoundException e) {
