@@ -146,7 +146,7 @@ public class HMM {
 		HashMap<String, Double> currentStates, nextStates, currentScores, nextScores;
 		while ((sentenceLine = testSentences.readLine()) != null) {
 			// Create required data structures for testing files, regenerate each line
-			currentStates = new HashMap<String, Double>(); currentStates.put("#", 0);
+			currentStates = new HashMap<String, Double>(); currentStates.put("#", 0.0);
 			nextStates = new HashMap<String, Double>();
 			currentScores = new HashMap<String, Double>();
 			nextScores = new HashMap<String, Double>();
