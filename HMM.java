@@ -6,26 +6,18 @@ public class HMM {
 	static String textFolder = "inputs/ps5/";
 	static String textSubject = "simple";
 	
-//	currStates = { start }
-//	currScores = map { start=0 }
-//	for i from 0 to # observations - 1
-//	  nextTagStates = {}
-//	  nextTagScores = empty map
-//	  for each currState in currStates
-//	    for each transition currState -> nextTagState
-//	      add nextTagState to nextTagStates
-//	      nextTagScore = currScores[currState] +                       // path to here
-//	                  transitionScore(currState -> nextTagState) +     // take a step to there
-//	                  observationScore(observations[i] in nextTagState) // make the observation there
-//	      if nextTagState isn't in nextTagScores or nextTagScore > nextTagScores[nextTagState]
-//	        set nextTagScores[nextTagState] to nextTagScore
-//	        remember that pred of nextTagState @ i is curr
-//	  currStates = nextTagStates
-//	  currScores = nextTagScores
-	
 	public static void main(String[] args) {
 		
 		try {
+			
+			// Declare variables.
+			String tagLine, sentenceLine;
+			String[] splitTagLine, splitSentenceLine;
+			
+			/*
+			 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH
+			 */
+			
 			// Create bufferedReaders training files
 			BufferedReader trainSentences = new BufferedReader(new FileReader(textFolder + textSubject + "-train-sentences.txt"));
 			BufferedReader trainTags = new BufferedReader(new FileReader(textFolder + textSubject + "-train-tags.txt"));
@@ -50,14 +42,13 @@ public class HMM {
 			}
 			
 			// READ ALL WORDS INTO PARTS OF SPEECH MAP.
-			// Declare variables.
-			String tagLine, trainLine;
+
 			// While there is another line, read it.
 			while ((tagLine = trainTags.readLine()) != null) {
-				trainLine = trainSentences.readLine();
+				sentenceLine = trainSentences.readLine();
 				// Split your lines.
-				String[] splitTagLine = tagLine.split(" ");
-				String[] splitTrainLine = trainLine.split(" ");
+				splitTagLine = tagLine.split(" ");
+				splitSentenceLine = sentenceLine.split(" ");
 				// Iterate through the split lines.
 				String currentTag = "#";
 				for(int i = 0; i < splitTagLine.length; i++) {
@@ -67,12 +58,12 @@ public class HMM {
 					
 					// Add next tag to POS map.
 					HashMap<String, Integer> POSWord = POSWords.get(nextTag);
-					if (POSWord.containsKey(splitTrainLine[i])) {
-						int numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(splitTrainLine[i]);
-						POSWord.put(splitTrainLine[i], numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
+					if (POSWord.containsKey(splitSentenceLine[i])) {
+						int numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(splitSentenceLine[i]);
+						POSWord.put(splitSentenceLine[i], numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
 					}
 					else {
-						POSWord.put(splitTrainLine[i], 1);
+						POSWord.put(splitSentenceLine[i], 1);
 					}
 						
 					// Get the number of times POS1 has gone to POS2
@@ -92,18 +83,62 @@ public class HMM {
 			trainSentences.close();
 			trainTags.close();
 			
+//			// Turn the <String, Integer> Adjacency Map into a <String, Double> with percentages.
+//			AdjacencyMapGraph<String, Double> POSPercentages = new AdjacencyMapGraph<String, Double>();
+//			for (String vertex : POSTransitions.vertices()) {
+//				
+//			}
 			
-			// Create bufferedReaders for testing files
+			/*
+			 * THE HARD PART: INPUTTING TEST FILES
+			 */
+			
+			// Create bufferedReader for testing sentences
 			BufferedReader testSentences = new BufferedReader(new FileReader(textFolder + textSubject + "-test-sentences.txt"));
-			BufferedReader testTags = new BufferedReader(new FileReader(textFolder + textSubject + "-test-tags.txt"));
 			
 			// Create required data structures for testing files
 			ArrayList backtraces = new ArrayList<String>();
+			HashMap currentStates = new HashMap<String, Integer>();
+			HashMap previousStates = new HashMap<String, Integer>();
 			HashMap currentScores = new HashMap<String, Integer>();
-			HashMap nextScores = new HashMap<String, Integer>();
+			HashMap previousScores = new HashMap<String, Integer>();
 			
-			// Close testing files
+//			currStates = { start }
+//			currScores = map { start=0 }
+//			for i from 0 to # observations - 1
+			while ((sentenceLine = testSentences.readLine()) != null) {
+				splitSentenceLine = sentenceLine.split(" ");
+				
+				for(int i = 0; i < splitSentenceLine.length; i++) {
+					// Get your next tag.
+					String nextWord = splitSentenceLine[i];
+					// TODO: Everything
+					
+			}
+//			  nextStates = {}
+//			  nextScores = empty map
+//			  for each currState in currStates
+//			    for each transition currState -> nextState
+//			      add nextState to nextStates
+//			      nextScore = currScores[currState] +                       // path to here
+//			                  transitionScore(currState -> nextState) +     // take a step to there
+//			                  observationScore(observations[i] in nextState) // make the observation there
+//			      if nextState isn't in nextScores or nextScore > nextScores[nextState]
+//			        set nextScores[nextState] to nextScore
+//			        remember that pred of nextState @ i is curr
+//			  currStates = nextStates
+//			  currScores = nextScores
+//			score += value of transition between POS + value of word given POS
+			
+			// Close testing file
 			testSentences.close();
+			
+			
+			// Test results against actual tags
+			BufferedReader testTags = new BufferedReader(new FileReader(textFolder + textSubject + "-test-tags.txt"));
+			/* 
+			 * DO STUFF
+			 */
 			testTags.close();
 		} 
 		
