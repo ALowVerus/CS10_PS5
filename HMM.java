@@ -31,8 +31,11 @@ public class HMM {
 		BufferedReader trainTags = load(textFolder + textSubject + "-train-tags.txt");
 		
 		// Generate all required data structures for training
-		HashMap<String, HashMap<String, Integer>> POSWords = new HashMap<String, HashMap<String, Integer>>(); // Inputs POS, get out HashMap of Words with # of times used as POS
-		AdjacencyMapGraph<String, Integer> POSTransitions = new AdjacencyMapGraph<String, Integer>(); // Inputs POS, gets # of times it transitions to other POS
+		/**
+		 * THE FOLLOWING MIGHT MAKE MORE SENSE WITH WORDS AS KEYS AND POS AS VALUE
+		 */
+		HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); // Inputs word, get out HashMap of POS with # of times used as POS
+		AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); // Inputs POS, gets # of times it transitions to other POS
 		
 		// Put all the parts of speech we need into a list.
 		ArrayList<String> POSList = new ArrayList<String>(
@@ -45,7 +48,7 @@ public class HMM {
 		// Add all parts of speech as objects into the graph.
 		for (String POS : POSList) {
 			POSTransitions.insertVertex(POS);
-			POSWords.put(POS, new HashMap<String, Integer>());
+			POSWords.put(POS, new HashMap<String, Double>());
 		}
 		// READ ALL WORDS INTO PARTS OF SPEECH MAP.
 		// While there is another line, read it.
@@ -60,19 +63,19 @@ public class HMM {
 				// Get your next tag.
 				String nextTag = splitTagLine[i];
 				// Add next tag to POS map.
-				HashMap<String, Integer> POSWord = POSWords.get(nextTag);
+				HashMap<String, Double> POSWord = POSWords.get(nextTag);
 				if (POSWord.containsKey(splitSentenceLine[i])) {
-					int numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(splitSentenceLine[i]);
+					Double numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(splitSentenceLine[i]);
 					POSWord.put(splitSentenceLine[i], numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
 				}
 				else {
-					POSWord.put(splitSentenceLine[i], 1);
+					POSWord.put(splitSentenceLine[i], 1.0);
 				}
 				// Get the number of times POS1 has gone to POS2
-				int n;
-				if (POSTransitions.getLabel(currentTag, nextTag) == null) { n = 1;}
+				Double n;
+				if (POSTransitions.getLabel(currentTag, nextTag) == null) { n = 1.0;}
 				else { 
-					n = POSTransitions.getLabel(currentTag, nextTag) + 1; 
+					n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
 					POSTransitions.removeDirected(currentTag, nextTag);
 				}
 				// Insert a directed edge with 1 more than before
@@ -85,6 +88,41 @@ public class HMM {
 		trainSentences.close();
 		trainTags.close();
 		
+		// Change the POSTransitions graph from using rote numbers to percentage hits.
+		Iterator<String> vertexIterator = POSTransitions.vertices().iterator();
+		Iterator<String> neighborIterator;
+		while(vertexIterator.hasNext()) {
+			String currentVertex = vertexIterator.next();
+			// Iterate through neighbors of current vertex, get the total number of hits
+			neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
+			Double sum = 0.0;
+			while (neighborIterator.hasNext()) {
+				String neighborVertex = neighborIterator.next();
+				sum += POSTransitions.getLabel(currentVertex, neighborVertex);
+			}
+			// Iterate through neighbors again, changing routes to percentage hits
+			neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
+			while (neighborIterator.hasNext()) {
+				String neighborVertex = neighborIterator.next();
+				Double initialValue = POSTransitions.getLabel(currentVertex, neighborVertex);
+				POSTransitions.removeDirected(currentVertex, neighborVertex);
+				POSTransitions.insertDirected(currentVertex, neighborVertex, initialValue/sum);
+			}
+		}
+		
+		// Change the POSWords map from using rote numbers to percentage hits.
+		for (String word : POSWords.keySet()) {
+			// Get the sum of hits
+			Double sum = 0.0;
+			for (String POS : POSWords.get(word).keySet()) {
+				sum += POSWords.get(word).get(POS);
+			}
+			// Turn all hits into percentages
+			for (String POS : POSWords.get(word).keySet()) {
+				POSWords.get(word).put(POS, POSWords.get(word).get(POS) / sum);
+			}
+		}
+		
 		/*
 		 * THE HARD PART: INPUTTING TEST FILES
 		 */
@@ -96,18 +134,18 @@ public class HMM {
 //		currStates = { start }
 //		currScores = map { start=0 }
 //		for i from 0 to # observations - 1
+		HashMap<String, Integer> currentStates, previousStates, currentScores, previousScores;
 		while ((sentenceLine = testSentences.readLine()) != null) {
-			
 			// Create required data structures for testing files, regenerate each line
-			HashMap<String, Integer> currentStates = new HashMap<String, Integer>();
-			HashMap<String, Integer> previousStates = new HashMap<String, Integer>();
-			HashMap<String, Integer> currentScores = new HashMap<String, Integer>();
-			HashMap<String, Integer> previousScores = new HashMap<String, Integer>();
+			currentStates = new HashMap<String, Integer>();
+			previousStates = new HashMap<String, Integer>();
+			currentScores = new HashMap<String, Integer>();
+			previousScores = new HashMap<String, Integer>();
 			// Initialize backtraces with start item to fix start
 			ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
-			HashMap<String, String> initialState = new HashMap<String, String>();
-			initialState.put("#", "#");
-			backtraces.add(initialState);
+			HashMap<String, String> initialTracer = new HashMap<String, String>();
+			initialTracer.put("#", "#");
+			backtraces.add(initialTracer);
 			
 			splitSentenceLine = sentenceLine.split(" ");
 			
@@ -161,7 +199,7 @@ public class HMM {
 			// Write generated words to a string.
 			String backtracedStringPOS = "";
 			for (int i = 0; i < backtracedListPOS.size(); i ++) {
-				backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i);
+				backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
 			}
 			// Write backtraced string into an output file.
 			resultTagsIn.write(backtracedStringPOS);
