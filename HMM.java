@@ -92,17 +92,23 @@ public class HMM {
 		// Create bufferedReader for testing sentences
 		BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
-		// Create required data structures for testing files
-		HashMap<String, Integer> currentStates = new HashMap<String, Integer>();
-		HashMap<String, Integer> previousStates = new HashMap<String, Integer>();
-		HashMap<String, Integer> currentScores = new HashMap<String, Integer>();
-		HashMap<String, Integer> previousScores = new HashMap<String, Integer>();
-		ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
 		
 //		currStates = { start }
 //		currScores = map { start=0 }
 //		for i from 0 to # observations - 1
 		while ((sentenceLine = testSentences.readLine()) != null) {
+			
+			// Create required data structures for testing files, regenerate each line
+			HashMap<String, Integer> currentStates = new HashMap<String, Integer>();
+			HashMap<String, Integer> previousStates = new HashMap<String, Integer>();
+			HashMap<String, Integer> currentScores = new HashMap<String, Integer>();
+			HashMap<String, Integer> previousScores = new HashMap<String, Integer>();
+			// Initialize backtraces with start item to fix start
+			ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
+			HashMap<String, String> initialState = new HashMap<String, String>();
+			initialState.put("#", "#");
+			backtraces.add(initialState);
+			
 			splitSentenceLine = sentenceLine.split(" ");
 			
 			
