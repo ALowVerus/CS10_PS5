@@ -38,7 +38,9 @@ public class HMM {
 			String line;
 			while ((line = trainTags.readLine()) != null) {
 				String[] splitLine = line.split(" ");
-				for(int i = 0; i < splitLine.length; i++) {
+				for(int i = 1; i < splitLine.length; i++) {
+					if()
+					Integer currentLabel = 
 					POSTransitions.setLabel((i, (Integer) ((int)(POSTransitions.get(i)) + (Integer)1));
 				}
 			}
