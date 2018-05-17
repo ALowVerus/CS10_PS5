@@ -17,7 +17,7 @@ public class HMM {
 	}
 	
 	public static void main(String[] args) throws IOException {
-
+		
 		// Declare general variables.
 		String tagLine, sentenceLine;
 		String[] splitTagLine, splitSentenceLine;
@@ -36,6 +36,8 @@ public class HMM {
 		 */
 		HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); // Inputs word, get out HashMap of POS with # of times used as POS
 		AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); // Inputs POS, gets # of times it transitions to other POS
+		
+		System.out.println("Blah");
 		
 		// Put all the parts of speech we need into a list.
 		ArrayList<String> POSList = new ArrayList<String>(
@@ -123,81 +125,51 @@ public class HMM {
 			}
 		}
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
 		/*
 		 * THE HARD PART: INPUTTING TEST FILES
 		 */
 		
-		// Create bufferedReader for testing sentences
+		// Create bufferedReader for testing sentences and bufferedWriter for putting output.
 		BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
-		
-		HashMap<String, Double> currentStates, nextStates, currentScores, nextScores;
+		// Allocate memory to stuff that we need.
+		HashMap<String, Double> currentScores, nextScores;
+		String nextWord; HashMap<String, String> thisFrame;
+		ArrayList<HashMap<String, String>> backtraces;
+		Double currentScore, transitionScore, observationScore, nextScore;
+		// Keep going until we run out of lines to read.
 		while ((sentenceLine = testSentences.readLine()) != null) {
 			// Create required data structures for testing files, regenerate each line
-			currentStates = new HashMap<String, Double>(); currentStates.put("#", 0.0);
-			nextStates = new HashMap<String, Double>();
-			currentScores = new HashMap<String, Double>();
+			currentScores = new HashMap<String, Double>(); currentScores.put("#", 0.0);
 			nextScores = new HashMap<String, Double>();
-			ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
+			backtraces = new ArrayList<HashMap<String, String>>();
 			// Iterate through each line in the sentence.
 			splitSentenceLine = sentenceLine.split(" ");
-			String nextWord;
 			for(int i = 0; i < splitSentenceLine.length; i++) {
 				nextWord = splitSentenceLine[i]; // Get your next tag.
-				
-				for (String currentState : currentStates.keySet()) {
+				thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
+				for (String currentState : currentScores.keySet()) {
 					Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
 					while (neighborPOSs.hasNext()) {
 						String nextState = neighborPOSs.next();
 						// Making a score for the current state to the next state with the next word.
-						Double currentScore = currentScores.get(currentState);
-						Double transitionScore = POSTransitions.getLabel(currentState, nextState);
-						Double observationScore = POSWords.get(nextWord).get(nextState);
-						Double nextScore = currentScore + transitionScore + observationScore;
+						currentScore = currentScores.get(currentState);
+						transitionScore = POSTransitions.getLabel(currentState, nextState);
+						// Check whether your word exists as each given neighbor nextState. We might need to adjust the else value.
+						if (POSWords.get(nextWord).get(nextState) != null) { observationScore = POSWords.get(nextWord).get(nextState); }
+						else { observationScore = -10.0; }
+						nextScore = currentScore + transitionScore + observationScore;
 						// If you haven't seen this next state before, put in your score for the next state
 						if (nextScores.get(nextState) == null || nextScores.get(nextState) <= nextScore) {
 							nextScores.put(nextState, nextScore);
+							thisFrame.put(nextState, currentState);
 						}
 					}
 				}
 				// Reset states and scores after you've iterated.
-				currentStates = nextStates;
 				currentScores = nextScores;
+				backtraces.add(thisFrame);
 			}
-			
-//			  nextStates = {}
-//			  nextScores = empty map
-//			  for each currState in currStates
-//			    for each transition currState -> nextState
-//			      add nextState to nextStates
-//			      nextScore = currScores[currState] +                       // path to here
-//			                  transitionScore(currState -> nextState) +     // take a step to there
-//			                  observationScore(observations[i] in nextState) // make the observation there
-//			      if nextState isn't in nextScores or nextScore > nextScores[nextState]
-//			        set nextScores[nextState] to nextScore
-//			        remember that pred of nextState @ i is curr
-//			  currStates = nextStates
-//			  currScores = nextScores
-//			score += value of transition between POS + value of word given POS
-			
-			
-			
-			
-			
-			
-			
 			
 			// BACKTRACE! First, generate an array list of POS. Then, iterate through that list to generate a string. Then, copy that string into an output file.
 			// Generate the list.

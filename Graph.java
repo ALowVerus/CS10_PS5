@@ -1,4 +1,3 @@
-
 /**
  * Simple interface for graphs, simplified from Goodrich & Tamassia
  * Centered on directed edges, with undirected edges treated as pairs of directed edges 
