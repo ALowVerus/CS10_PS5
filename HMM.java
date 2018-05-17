@@ -23,9 +23,9 @@ public class HMM {
 		String[] splitTagLine, splitSentenceLine;
 		
 		/*
-		 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH
+		 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH.
+		 * Basically done. We still need to test. We might also want to convert from a flat integer adjacency graph to some sort of probability-based solution.
 		 */
-		
 		// Create bufferedReaders training files
 		BufferedReader trainSentences = load(textFolder + textSubject + "-train-sentences.txt");
 		BufferedReader trainTags = load(textFolder + textSubject + "-train-tags.txt");
@@ -42,15 +42,12 @@ public class HMM {
 						"V", "VD", "VG", "VN", "WH", "#"
 				)
 		);
-		
 		// Add all parts of speech as objects into the graph.
 		for (String POS : POSList) {
 			POSTransitions.insertVertex(POS);
 			POSWords.put(POS, new HashMap<String, Integer>());
 		}
-		
 		// READ ALL WORDS INTO PARTS OF SPEECH MAP.
-
 		// While there is another line, read it.
 		while ((tagLine = trainTags.readLine()) != null) {
 			sentenceLine = trainSentences.readLine();
@@ -60,10 +57,8 @@ public class HMM {
 			// Iterate through the split lines.
 			String currentTag = "#";
 			for(int i = 0; i < splitTagLine.length; i++) {
-				
 				// Get your next tag.
 				String nextTag = splitTagLine[i];
-				
 				// Add next tag to POS map.
 				HashMap<String, Integer> POSWord = POSWords.get(nextTag);
 				if (POSWord.containsKey(splitSentenceLine[i])) {
@@ -73,7 +68,6 @@ public class HMM {
 				else {
 					POSWord.put(splitSentenceLine[i], 1);
 				}
-					
 				// Get the number of times POS1 has gone to POS2
 				int n;
 				if (POSTransitions.getLabel(currentTag, nextTag) == null) { n = 1;}
@@ -87,15 +81,9 @@ public class HMM {
 				currentTag = nextTag;
 			}
 		}
-		
+		// Close files.
 		trainSentences.close();
 		trainTags.close();
-		
-//		// Turn the <String, Integer> Adjacency Map into a <String, Double> with percentages.
-//		AdjacencyMapGraph<String, Double> POSPercentages = new AdjacencyMapGraph<String, Double>();
-//		for (String vertex : POSTransitions.vertices()) {
-//			
-//		}
 		
 		/*
 		 * THE HARD PART: INPUTTING TEST FILES
@@ -103,8 +91,7 @@ public class HMM {
 		
 		// Create bufferedReader for testing sentences
 		BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
-		BufferedWriter resultTagIn = write(textFolder + textSubject + "-result-tags.txt");
-		
+		BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
 		// Create required data structures for testing files
 		ArrayList backtraces = new ArrayList<String>();
 		HashMap currentStates = new HashMap<String, Integer>();
@@ -140,20 +127,33 @@ public class HMM {
 //		  currScores = nextScores
 //		score += value of transition between POS + value of word given POS
 		
-		// Close testing file
+		// Close testing file and results writer
 		testSentences.close();
+		resultTagsIn.close();
 		
 		
-		// Test results against actual tags
+		// TEST RESULT TAGS AGAINST GIVEN TAGS
+		// Open test and result tags
 		BufferedReader testTags = load(textFolder + textSubject + "-test-tags.txt");
 		BufferedReader resultTagsOut = load(textFolder + textSubject + "-result-tags.txt");
+		// Run through each line of the test and result tags
 		String testTagsLine, resultTagsOutLine;
+		String[] splitTestTagsLine, splitResultTagsOutLine;
+		String testTag, resultTagOut;
+		int goodCalls = 0, badCalls = 0;
 		while ((testTagsLine = testTags.readLine()) != null && (resultTagsOutLine = resultTagsOut.readLine()) != null) {
-			
+			splitTestTagsLine = testTagsLine.split(" "); splitResultTagsOutLine = resultTagsOutLine.split(" ");
+			for (int i = 0; i < splitTestTagsLine.length; i ++) {
+				testTag = splitTestTagsLine[i]; resultTagOut = splitResultTagsOutLine[i];
+				if (testTag.equals(resultTagOut)) { goodCalls ++; }
+				else { badCalls ++; }
+			}
 		}
-		/* 
-		 * DO STUFF
-		 */
+		// Close testing tags and result tags
 		testTags.close();
+		resultTagsOut.close();
+		// Print results
+		System.out.println("Good calls: " + String.valueOf(goodCalls));
+		System.out.println("Bad calls: " + String.valueOf(badCalls));
 	}
 }
