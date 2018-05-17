@@ -24,7 +24,7 @@ public class HMM {
 		
 		/*
 		 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH.
-		 * Basically done. We still need to test. We might also want to convert from a flat integer adjacency graph to some sort of probability-based solution.
+		 * Basically done. We still need to test. We might also want to convert from a flat Double adjacency graph to some sort of probability-based solution.
 		 */
 		// Create bufferedReaders training files
 		BufferedReader trainSentences = load(textFolder + textSubject + "-train-sentences.txt");
@@ -123,6 +123,18 @@ public class HMM {
 			}
 		}
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
 		/*
 		 * THE HARD PART: INPUTTING TEST FILES
 		 */
@@ -131,36 +143,38 @@ public class HMM {
 		BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
 		
-//		currStates = { start }
-//		currScores = map { start=0 }
-//		for i from 0 to # observations - 1
-		HashMap<String, Integer> currentStates, previousStates, currentScores, previousScores;
+		HashMap<String, Double> currentStates, nextStates, currentScores, nextScores;
 		while ((sentenceLine = testSentences.readLine()) != null) {
 			// Create required data structures for testing files, regenerate each line
-			currentStates = new HashMap<String, Integer>();
-			previousStates = new HashMap<String, Integer>();
-			currentScores = new HashMap<String, Integer>();
-			previousScores = new HashMap<String, Integer>();
-			// Initialize backtraces with start item to fix start
+			currentStates = new HashMap<String, Double>(); currentStates.put("#", 0);
+			nextStates = new HashMap<String, Double>();
+			currentScores = new HashMap<String, Double>();
+			nextScores = new HashMap<String, Double>();
 			ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
-			HashMap<String, String> initialTracer = new HashMap<String, String>();
-			initialTracer.put("#", "#");
-			backtraces.add(initialTracer);
-			
+			// Iterate through each line in the sentence.
 			splitSentenceLine = sentenceLine.split(" ");
-			
-			
-			
-			
-			
-			
-			
-			// WHAT THE FUCK DO WE DO HERE, IS THE REAL QUESTION.
-			
+			String nextWord;
 			for(int i = 0; i < splitSentenceLine.length; i++) {
-				// Get your next tag.
-				String nextWord = splitSentenceLine[i];
-				// TODO: Everything
+				nextWord = splitSentenceLine[i]; // Get your next tag.
+				
+				for (String currentState : currentStates.keySet()) {
+					Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
+					while (neighborPOSs.hasNext()) {
+						String nextState = neighborPOSs.next();
+						// Making a score for the current state to the next state with the next word.
+						Double currentScore = currentScores.get(currentState);
+						Double transitionScore = POSTransitions.getLabel(currentState, nextState);
+						Double observationScore = POSWords.get(nextWord).get(nextState);
+						Double nextScore = currentScore + transitionScore + observationScore;
+						// If you haven't seen this next state before, put in your score for the next state
+						if (nextScores.get(nextState) == null || nextScores.get(nextState) <= nextScore) {
+							nextScores.put(nextState, nextScore);
+						}
+					}
+				}
+				// Reset states and scores after you've iterated.
+				currentStates = nextStates;
+				currentScores = nextScores;
 			}
 			
 //			  nextStates = {}
