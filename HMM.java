@@ -93,11 +93,11 @@ public class HMM {
 		BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
 		// Create required data structures for testing files
-		ArrayList backtraces = new ArrayList<String>();
-		HashMap currentStates = new HashMap<String, Integer>();
-		HashMap previousStates = new HashMap<String, Integer>();
-		HashMap currentScores = new HashMap<String, Integer>();
-		HashMap previousScores = new HashMap<String, Integer>();
+		HashMap<String, Integer> currentStates = new HashMap<String, Integer>();
+		HashMap<String, Integer> previousStates = new HashMap<String, Integer>();
+		HashMap<String, Integer> currentScores = new HashMap<String, Integer>();
+		HashMap<String, Integer> previousScores = new HashMap<String, Integer>();
+		ArrayList<HashMap<String, String>> backtraces = new ArrayList<HashMap<String, String>>();
 		
 //		currStates = { start }
 //		currScores = map { start=0 }
@@ -105,27 +105,61 @@ public class HMM {
 		while ((sentenceLine = testSentences.readLine()) != null) {
 			splitSentenceLine = sentenceLine.split(" ");
 			
+			
+			
+			
+			
+			
+			
+			// WHAT THE FUCK DO WE DO HERE, IS THE REAL QUESTION.
+			
 			for(int i = 0; i < splitSentenceLine.length; i++) {
 				// Get your next tag.
 				String nextWord = splitSentenceLine[i];
 				// TODO: Everything
 			}
-				
+			
+//			  nextStates = {}
+//			  nextScores = empty map
+//			  for each currState in currStates
+//			    for each transition currState -> nextState
+//			      add nextState to nextStates
+//			      nextScore = currScores[currState] +                       // path to here
+//			                  transitionScore(currState -> nextState) +     // take a step to there
+//			                  observationScore(observations[i] in nextState) // make the observation there
+//			      if nextState isn't in nextScores or nextScore > nextScores[nextState]
+//			        set nextScores[nextState] to nextScore
+//			        remember that pred of nextState @ i is curr
+//			  currStates = nextStates
+//			  currScores = nextScores
+//			score += value of transition between POS + value of word given POS
+			
+			
+			
+			
+			
+			
+			
+			
+			// BACKTRACE! First, generate an array list of POS. Then, iterate through that list to generate a string. Then, copy that string into an output file.
+			// Generate the list.
+			String currentPOS = "";
+			ArrayList<String> backtracedListPOS = new ArrayList<String>();
+			int layersBack = 0;
+			while (!currentPOS.equals("#")) {
+				backtracedListPOS.add(currentPOS);
+				HashMap<String, String> nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
+				currentPOS = nextLayer.get(currentPOS);
+				layersBack ++;
+			}
+			// Write generated words to a string.
+			String backtracedStringPOS = "";
+			for (int i = 0; i < backtracedListPOS.size(); i ++) {
+				backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i);
+			}
+			// Write backtraced string into an output file.
+			resultTagsIn.write(backtracedStringPOS);
 		}
-//		  nextStates = {}
-//		  nextScores = empty map
-//		  for each currState in currStates
-//		    for each transition currState -> nextState
-//		      add nextState to nextStates
-//		      nextScore = currScores[currState] +                       // path to here
-//		                  transitionScore(currState -> nextState) +     // take a step to there
-//		                  observationScore(observations[i] in nextState) // make the observation there
-//		      if nextState isn't in nextScores or nextScore > nextScores[nextState]
-//		        set nextScores[nextState] to nextScore
-//		        remember that pred of nextState @ i is curr
-//		  currStates = nextStates
-//		  currScores = nextScores
-//		score += value of transition between POS + value of word given POS
 		
 		// Close testing file and results writer
 		testSentences.close();
