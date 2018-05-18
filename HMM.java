@@ -36,22 +36,20 @@ public class HMM {
 			 */
 			HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); // Inputs word, get out HashMap of POS with # of times used as POS
 			AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); // Inputs POS, gets # of times it transitions to other POS
-			
-			System.out.println("Blah");
-			
+						
 			// Put all the parts of speech we need into a list.
 			ArrayList<String> POSList = new ArrayList<String>(
 					Arrays.asList(
 							"ADJ", "ADV", "CNJ", "DET", "EX", "FW", "MOD", 
 							"N", "NP", "NUM", "PRO", "P", "TO", "UH", 
-							"V", "VD", "VG", "VN", "WH", "#"
+							"V", "VD", "VG", "VN", "WH", ".", "#"
 					)
 			);
 			// Add all parts of speech as objects into the graph.
 			for (String POS : POSList) {
 				POSTransitions.insertVertex(POS);
-				POSWords.put(POS, new HashMap<String, Double>());
 			}
+			
 			// READ ALL WORDS INTO PARTS OF SPEECH MAP.
 			// While there is another line, read it.
 			while ((tagLine = trainTags.readLine()) != null) {
@@ -62,16 +60,21 @@ public class HMM {
 				// Iterate through the split lines.
 				String currentTag = "#";
 				for(int i = 0; i < splitTagLine.length; i++) {
-					// Get your next tag.
+					// Get your next tag and word.
 					String nextTag = splitTagLine[i];
+					String nextWord = splitSentenceLine[i];
 					// Add next tag to POS map.
-					HashMap<String, Double> POSWord = POSWords.get(nextTag);
-					if (POSWord.containsKey(splitSentenceLine[i])) {
-						Double numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(splitSentenceLine[i]);
-						POSWord.put(splitSentenceLine[i], numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
+					HashMap<String, Double> POSWord = POSWords.get(nextWord);
+					// Check that the word exists, and if it doesn't, initialize to a blank
+					if (POSWord == null) {
+						POSWord = new HashMap<String,Double>();
+					}
+					if (POSWord.containsKey(nextTag)) {
+						Double numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(nextTag);
+						POSWord.put(nextTag, numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
 					}
 					else {
-						POSWord.put(splitSentenceLine[i], 1.0);
+						POSWord.put(nextTag, 1.0);
 					}
 					// Get the number of times POS1 has gone to POS2
 					Double n;
@@ -90,6 +93,8 @@ public class HMM {
 			trainSentences.close();
 			trainTags.close();
 			
+			System.out.println("Training files complete");
+			
 			// Change the POSTransitions graph from using rote numbers to percentage hits.
 			Iterator<String> vertexIterator = POSTransitions.vertices().iterator();
 			Iterator<String> neighborIterator;
@@ -104,8 +109,11 @@ public class HMM {
 				}
 				// Iterate through neighbors again, changing routes to percentage hits
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
+				System.out.println("Neighbors of " + currentVertex + " are " + POSTransitions.outNeighbors(currentVertex)
+				);
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
+					System.out.println(neighborVertex);
 					Double initialValue = POSTransitions.getLabel(currentVertex, neighborVertex);
 					POSTransitions.removeDirected(currentVertex, neighborVertex);
 					POSTransitions.insertDirected(currentVertex, neighborVertex, initialValue/sum);
