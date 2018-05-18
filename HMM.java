@@ -100,17 +100,19 @@ public class HMM {
 			Iterator<String> neighborIterator;
 			while(vertexIterator.hasNext()) {
 				String currentVertex = vertexIterator.next();
+				System.out.println(currentVertex + ": current vertex");
 				// Iterate through neighbors of current vertex, get the total number of hits
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
-				Double sum = 0.0;
+				Double currentValue, sum = 0.0;
+				System.out.println("Neighbors of " + currentVertex + " are " + POSTransitions.outNeighbors(currentVertex));
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
-					sum += POSTransitions.getLabel(currentVertex, neighborVertex);
+					currentValue = POSTransitions.getLabel(currentVertex, neighborVertex);
+					sum += currentValue;
+					System.out.println("I just added " + currentValue + " from " + neighborVertex + ", sum is now " + sum);
 				}
 				// Iterate through neighbors again, changing routes to percentage hits
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
-				System.out.println("Neighbors of " + currentVertex + " are " + POSTransitions.outNeighbors(currentVertex)
-				);
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
 					System.out.println(neighborVertex);
