@@ -111,19 +111,25 @@ public class HMM {
 					sum += currentValue;
 					System.out.println("I just added " + currentValue + " from " + neighborVertex + ", sum is now " + sum);
 				}
+				ArrayList<String> toBeRemoved = new ArrayList<String>();
 				// Iterate through neighbors again, changing routes to percentage hits
+				
+				// MAKE MY FAKE LIST, AND ADD EVERYTHING TO IT
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
-					System.out.println(neighborVertex);
-					Double initialValue = POSTransitions.getLabel(currentVertex, neighborVertex);
-					POSTransitions.removeDirected(currentVertex, neighborVertex);
-					POSTransitions.insertDirected(currentVertex, neighborVertex, initialValue/sum);
+					toBeRemoved.add(neighborVertex);
+				}
+				for(String i: toBeRemoved) {
+					Double initialValue = POSTransitions.getLabel(currentVertex, i);
+					POSTransitions.removeDirected(currentVertex, i);
+					POSTransitions.insertDirected(currentVertex, i, initialValue/sum);
 				}
 			}
 			
 			// Change the POSWords map from using rote numbers to percentage hits.
 			for (String word : POSWords.keySet()) {
+				
 				// Get the sum of hits
 				Double sum = 0.0;
 				for (String POS : POSWords.get(word).keySet()) {
@@ -142,32 +148,42 @@ public class HMM {
 			// Create bufferedReader for testing sentences and bufferedWriter for putting output.
 			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
 			BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
+			
 			// Allocate memory to stuff that we need.
 			HashMap<String, Double> currentScores, nextScores;
 			String nextWord; HashMap<String, String> thisFrame;
 			ArrayList<HashMap<String, String>> backtraces;
 			Double currentScore, transitionScore, observationScore, nextScore;
+			
 			// Keep going until we run out of lines to read.
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
 				currentScores = new HashMap<String, Double>(); currentScores.put("#", 0.0);
 				nextScores = new HashMap<String, Double>();
 				backtraces = new ArrayList<HashMap<String, String>>();
+				
 				// Iterate through each line in the sentence.
 				splitSentenceLine = sentenceLine.split(" ");
 				for(int i = 0; i < splitSentenceLine.length; i++) {
 					nextWord = splitSentenceLine[i]; // Get your next tag.
 					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
+					
 					for (String currentState : currentScores.keySet()) {
 						Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
+						
 						while (neighborPOSs.hasNext()) {
 							String nextState = neighborPOSs.next();
 							// Making a score for the current state to the next state with the next word.
 							currentScore = currentScores.get(currentState);
 							transitionScore = POSTransitions.getLabel(currentState, nextState);
+							
 							// Check whether your word exists as each given neighbor nextState. We might need to adjust the else value.
-							if (POSWords.get(nextWord).get(nextState) != null) { observationScore = POSWords.get(nextWord).get(nextState); }
-							else { observationScore = -10.0; }
+							if (POSWords.get(nextWord).get(nextState) != null) { 
+								observationScore = POSWords.get(nextWord).get(nextState); 
+								}
+							else { 
+								observationScore = -10.0; 
+								}
 							nextScore = currentScore + transitionScore + observationScore;
 							// If you haven't seen this next state before, put in your score for the next state
 							if (nextScores.get(nextState) == null || nextScores.get(nextState) <= nextScore) {
