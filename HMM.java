@@ -24,7 +24,6 @@ public class HMM {
 			
 			/*
 			 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH.
-			 * Basically done. We still need to test. We might also want to convert from a flat Double adjacency graph to some sort of probability-based solution.
 			 */
 			
 			System.out.println("TRAINING BEGINS");
@@ -37,8 +36,10 @@ public class HMM {
 			/**
 			 * THE FOLLOWING MIGHT MAKE MORE SENSE WITH WORDS AS KEYS AND POS AS VALUE
 			 */
-			HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); // Inputs word, get out HashMap of POS with # of times used as POS
-			AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); // Inputs POS, gets # of times it transitions to other POS
+			// Inputs word, get out HashMap of POS with # of times used as POS
+			HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); 
+			// Inputs POS, gets # of times it transitions to other POS
+			AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); 
 			
 			// Put all the parts of speech we need into a list.
 			ArrayList<String> POSList = new ArrayList<String>(
@@ -157,6 +158,7 @@ public class HMM {
 			String nextWord; HashMap<String, String> thisFrame;
 			ArrayList<HashMap<String, String>> backtraces;
 			Double currentScore, transitionScore, observationScore, nextScore;
+			String currentState;
 			
 			// Keep going until we run out of lines to read.
 			while ((sentenceLine = testSentences.readLine()) != null) {
@@ -169,16 +171,24 @@ public class HMM {
 				splitSentenceLine = sentenceLine.split(" ");
 				for(int i = 0; i < splitSentenceLine.length; i++) {
 					nextWord = splitSentenceLine[i]; // Get your next tag.
+					System.out.println(nextWord);
 					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
-					for (String currentState : currentScores.keySet()) {
+					Iterator<String> currentScoresIterator = currentScores.keySet().iterator();
+					while (currentScoresIterator.hasNext()) {
+						// Making a score for the current state to the next state with the next word.
+						currentState = currentScoresIterator.next();
+						currentScore = currentScores.get(currentState);
 						Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
 						while (neighborPOSs.hasNext()) {
+							System.out.println("start while");
 							String nextState = neighborPOSs.next();
-							// Making a score for the current state to the next state with the next word.
-							currentScore = currentScores.get(currentState);
 							transitionScore = POSTransitions.getLabel(currentState, nextState);
 							// If the word has never been seen before, add it to POSWords.
-							if (POSWords.get(nextWord) == null) { POSWords.put(nextWord, new HashMap<String,Double>()); }
+							System.out.println("Before null check is " + POSWords.get(nextWord));
+							if (POSWords.get(nextWord) == null) { 
+								POSWords.put(nextWord, new HashMap<String,Double>());
+								System.out.println(nextWord + " was added to the POSWords");
+							}
 							// If the word has never been used as this type, give it a -10.0 score.
 							if (POSWords.get(nextWord).get(nextState) == null) { observationScore = -10.0; }
 							// Else, the word exists and has been used as this type. Give it its proper score.
@@ -189,6 +199,7 @@ public class HMM {
 								nextScores.put(nextState, nextScore);
 								thisFrame.put(nextState, currentState);
 							}
+							System.out.println("end while");
 						}
 					}
 					// Reset states and scores after you've iterated.
@@ -196,7 +207,8 @@ public class HMM {
 					backtraces.add(thisFrame);
 				}
 				
-				// BACKTRACE! First, generate an array list of POS. Then, iterate through that list to generate a string. Then, copy that string into an output file.
+				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
+				
 				// Generate the list.
 				String currentPOS = "";
 				ArrayList<String> backtracedListPOS = new ArrayList<String>();
