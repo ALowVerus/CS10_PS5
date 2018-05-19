@@ -5,6 +5,7 @@ public class HMM {
 	// Define where input files come from. Simple is the boring file, brown is the complex file.
 	static String textFolder = "inputs/ps5/";
 	static String textSubject = "simple";
+	static String sentenceStarter = "#";
 	
 	public static BufferedReader load(String URL) {
 		try {return new BufferedReader(new FileReader(URL));}
@@ -46,7 +47,7 @@ public class HMM {
 					Arrays.asList(
 							"ADJ", "ADV", "CNJ", "DET", "EX", "FW", "MOD", 
 							"N", "NP", "NUM", "PRO", "P", "TO", "UH", 
-							"V", "VD", "VG", "VN", "WH", ".", "#"
+							"V", "VD", "VG", "VN", "WH", ".", sentenceStarter
 					)
 			);
 			// Add all parts of speech as objects into the graph.
@@ -62,7 +63,7 @@ public class HMM {
 				splitTagLine = tagLine.split(" ");
 				splitSentenceLine = sentenceLine.split(" ");
 				// Iterate through the split lines.
-				String currentTag = "#";
+				String currentTag = sentenceStarter;
 				for(int i = 0; i < splitTagLine.length; i++) {
 					// Get your next tag and word.
 					String nextTag = splitTagLine[i];
@@ -155,14 +156,16 @@ public class HMM {
 			
 			// Allocate memory to stuff that we need.
 			HashMap<String, Double> currentScores, nextScores;
-			String nextWord; HashMap<String, String> thisFrame;
+			String nextWord, currentPOS; 
+			HashMap<String, String> thisFrame, nextLayer;
 			ArrayList<HashMap<String, String>> backtraces;
-			Double currentScore, transitionScore, observationScore, nextScore;
+			Double currentScore, transitionScore, observationScore, nextScore, bestEndValue;
+			Iterator<String> currentScoresIterator, neighborPOSs;
 			
 			// Keep going until we run out of lines to read.
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
-				currentScores = new HashMap<String, Double>(); currentScores.put("#", 0.0);
+				currentScores = new HashMap<String, Double>(); currentScores.put(sentenceStarter, 0.0);
 				nextScores = new HashMap<String, Double>();
 				backtraces = new ArrayList<HashMap<String, String>>();
 				
@@ -181,26 +184,26 @@ public class HMM {
 					// Make new backpointer frame for this word.
 					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
 					// Iterate through current scores.
-					Iterator<String> currentScoresIterator = currentScores.keySet().iterator();
+					currentScoresIterator = currentScores.keySet().iterator();
 					while (currentScoresIterator.hasNext()) {
-						String currentState = currentScoresIterator.next();
+						currentPOS = currentScoresIterator.next();
 						// Making a score for the current state to the next state with the next word.
-						System.out.println("The neighbors of " + currentState + " are " + POSTransitions.outNeighbors(currentState));
-						currentScore = currentScores.get(currentState);
-						Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
+						System.out.println("The neighbors of " + currentPOS + " are " + POSTransitions.outNeighbors(currentPOS));
+						currentScore = currentScores.get(currentPOS);
+						neighborPOSs = POSTransitions.outNeighbors(currentPOS).iterator();
 						while (neighborPOSs.hasNext()) {
-							String nextState = neighborPOSs.next();
-							System.out.println("Checking " + nextState);
-							transitionScore = POSTransitions.getLabel(currentState, nextState);
+							String nextPOS = neighborPOSs.next();
+							System.out.println("Checking " + nextPOS);
+							transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
 							// If the word has never been used as this type, give it a -10.0 score.
-							if (POSWords.get(nextWord).get(nextState) == null) { observationScore = -10.0; }
+							if (POSWords.get(nextWord).get(nextPOS) == null) { observationScore = -10.0; }
 							// Else, the word exists and has been used as this type. Give it its proper score.
-							else { observationScore = POSWords.get(nextWord).get(nextState); }
+							else { observationScore = POSWords.get(nextWord).get(nextPOS); }
 							nextScore = currentScore + transitionScore + observationScore;
 							// If you haven't seen this next state before, put in your score for the next state
-							if (nextScores.get(nextState) == null || nextScores.get(nextState) <= nextScore) {
-								nextScores.put(nextState, nextScore);
-								thisFrame.put(nextState, currentState);
+							if (nextScores.get(nextPOS) == null || nextScores.get(nextPOS) <= nextScore) {
+								nextScores.put(nextPOS, nextScore);
+								thisFrame.put(nextPOS, currentPOS);
 							}
 						}
 						
@@ -212,15 +215,28 @@ public class HMM {
 				}
 				
 				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
+				System.out.println("BACKTRACING");
+				
+				// Get the best end POS.
+				bestEndValue = 0.0;
+				currentPOS = sentenceStarter;
+				for (String POS : nextScores.keySet()) {
+					System.out.println("Best value is " + bestEndValue + ", current one is " + POS + " " + nextScores.get(POS));
+					if (bestEndValue < nextScores.get(POS)) {
+						bestEndValue = nextScores.get(POS);
+						currentPOS = POS;
+					}
+				}
 				
 				// Generate the list.
-				String currentPOS = "";
 				ArrayList<String> backtracedListPOS = new ArrayList<String>();
 				int layersBack = 0;
-				while (!currentPOS.equals("#")) {
+				while (currentPOS != null) {
+					System.out.println(currentPOS + " has been added.");
 					backtracedListPOS.add(currentPOS);
-					HashMap<String, String> nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
+					nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
 					currentPOS = nextLayer.get(currentPOS);
+					System.out.println("The POS is now " + currentPOS);
 					layersBack ++;
 				}
 				// Write generated words to a string.
