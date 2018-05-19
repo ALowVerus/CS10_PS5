@@ -158,7 +158,6 @@ public class HMM {
 			String nextWord; HashMap<String, String> thisFrame;
 			ArrayList<HashMap<String, String>> backtraces;
 			Double currentScore, transitionScore, observationScore, nextScore;
-			String currentState;
 			
 			// Keep going until we run out of lines to read.
 			while ((sentenceLine = testSentences.readLine()) != null) {
@@ -170,25 +169,29 @@ public class HMM {
 				// Iterate through each line in the sentence.
 				splitSentenceLine = sentenceLine.split(" ");
 				for(int i = 0; i < splitSentenceLine.length; i++) {
-					nextWord = splitSentenceLine[i]; // Get your next tag.
-					System.out.println(nextWord);
+					// Get your next word.
+					nextWord = splitSentenceLine[i];
+					// If the word has never been seen before, add it to POSWords.
+					if (POSWords.get(nextWord) == null) { 
+						POSWords.put(nextWord, new HashMap<String,Double>());
+						System.out.println(nextWord + " was added to the POSWords");
+					}
+					System.out.println("The next word is ~" + nextWord + "~.");
+					System.out.println("Current states are " + currentScores.keySet() + ".");
+					// Make new backpointer frame for this word.
 					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
+					// Iterate through current scores.
 					Iterator<String> currentScoresIterator = currentScores.keySet().iterator();
 					while (currentScoresIterator.hasNext()) {
+						String currentState = currentScoresIterator.next();
 						// Making a score for the current state to the next state with the next word.
-						currentState = currentScoresIterator.next();
+						System.out.println("The neighbors of " + currentState + " are " + POSTransitions.outNeighbors(currentState));
 						currentScore = currentScores.get(currentState);
 						Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
 						while (neighborPOSs.hasNext()) {
-							System.out.println("start while");
 							String nextState = neighborPOSs.next();
+							System.out.println("Checking " + nextState);
 							transitionScore = POSTransitions.getLabel(currentState, nextState);
-							// If the word has never been seen before, add it to POSWords.
-							System.out.println("Before null check is " + POSWords.get(nextWord));
-							if (POSWords.get(nextWord) == null) { 
-								POSWords.put(nextWord, new HashMap<String,Double>());
-								System.out.println(nextWord + " was added to the POSWords");
-							}
 							// If the word has never been used as this type, give it a -10.0 score.
 							if (POSWords.get(nextWord).get(nextState) == null) { observationScore = -10.0; }
 							// Else, the word exists and has been used as this type. Give it its proper score.
@@ -199,11 +202,12 @@ public class HMM {
 								nextScores.put(nextState, nextScore);
 								thisFrame.put(nextState, currentState);
 							}
-							System.out.println("end while");
 						}
+						
 					}
-					// Reset states and scores after you've iterated.
-					currentScores = nextScores;
+					// Reset states and scores after you've iterated. Clear and put, rather than set=.
+					currentScores.clear();
+					currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
 					backtraces.add(thisFrame);
 				}
 				
@@ -242,8 +246,10 @@ public class HMM {
 			String[] splitTestTagsLine, splitResultTagsOutLine;
 			String testTag, resultTagOut;
 			int goodCalls = 0, badCalls = 0;
-			while ((testTagsLine = testTags.readLine()) != null && (resultTagsOutLine = resultTagsOut.readLine()) != null) {
-				splitTestTagsLine = testTagsLine.split(" "); splitResultTagsOutLine = resultTagsOutLine.split(" ");
+			while ((testTagsLine = testTags.readLine()) != null 
+					&& (resultTagsOutLine = resultTagsOut.readLine()) != null) {
+				splitTestTagsLine = testTagsLine.split(" "); 
+				splitResultTagsOutLine = resultTagsOutLine.split(" ");
 				for (int i = 0; i < splitTestTagsLine.length; i ++) {
 					testTag = splitTestTagsLine[i]; resultTagOut = splitResultTagsOutLine[i];
 					if (testTag.equals(resultTagOut)) { goodCalls ++; }
