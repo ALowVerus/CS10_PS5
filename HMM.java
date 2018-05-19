@@ -26,6 +26,9 @@ public class HMM {
 			 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH.
 			 * Basically done. We still need to test. We might also want to convert from a flat Double adjacency graph to some sort of probability-based solution.
 			 */
+			
+			System.out.println("TRAINING BEGINS");
+			
 			// Create bufferedReaders training files
 			BufferedReader trainSentences = load(textFolder + textSubject + "-train-sentences.txt");
 			BufferedReader trainTags = load(textFolder + textSubject + "-train-tags.txt");
@@ -36,7 +39,7 @@ public class HMM {
 			 */
 			HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); // Inputs word, get out HashMap of POS with # of times used as POS
 			AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); // Inputs POS, gets # of times it transitions to other POS
-						
+			
 			// Put all the parts of speech we need into a list.
 			ArrayList<String> POSList = new ArrayList<String>(
 					Arrays.asList(
@@ -76,6 +79,7 @@ public class HMM {
 					else {
 						POSWord.put(nextTag, 1.0);
 					}
+					POSWords.put(nextWord, POSWord);
 					// Get the number of times POS1 has gone to POS2
 					Double n;
 					if (POSTransitions.getLabel(currentTag, nextTag) == null) { n = 1.0;}
@@ -93,23 +97,20 @@ public class HMM {
 			trainSentences.close();
 			trainTags.close();
 			
-			System.out.println("Training files complete");
+			System.out.println("TRAINING COMPLETE");
 			
 			// Change the POSTransitions graph from using rote numbers to percentage hits.
 			Iterator<String> vertexIterator = POSTransitions.vertices().iterator();
 			Iterator<String> neighborIterator;
 			while(vertexIterator.hasNext()) {
 				String currentVertex = vertexIterator.next();
-				System.out.println(currentVertex + ": current vertex");
 				// Iterate through neighbors of current vertex, get the total number of hits
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
 				Double currentValue, sum = 0.0;
-				System.out.println("Neighbors of " + currentVertex + " are " + POSTransitions.outNeighbors(currentVertex));
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
 					currentValue = POSTransitions.getLabel(currentVertex, neighborVertex);
 					sum += currentValue;
-					System.out.println("I just added " + currentValue + " from " + neighborVertex + ", sum is now " + sum);
 				}
 				ArrayList<String> toBeRemoved = new ArrayList<String>();
 				// Iterate through neighbors again, changing routes to percentage hits
@@ -140,10 +141,12 @@ public class HMM {
 					POSWords.get(word).put(POS, POSWords.get(word).get(POS) / sum);
 				}
 			}
-			
+						
 			/*
 			 * THE HARD PART: INPUTTING TEST FILES
 			 */
+			
+			System.out.println("TESTING BEGUN");
 			
 			// Create bufferedReader for testing sentences and bufferedWriter for putting output.
 			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
@@ -167,23 +170,19 @@ public class HMM {
 				for(int i = 0; i < splitSentenceLine.length; i++) {
 					nextWord = splitSentenceLine[i]; // Get your next tag.
 					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
-					
 					for (String currentState : currentScores.keySet()) {
 						Iterator<String> neighborPOSs = POSTransitions.outNeighbors(currentState).iterator();
-						
 						while (neighborPOSs.hasNext()) {
 							String nextState = neighborPOSs.next();
 							// Making a score for the current state to the next state with the next word.
 							currentScore = currentScores.get(currentState);
 							transitionScore = POSTransitions.getLabel(currentState, nextState);
-							
-							// Check whether your word exists as each given neighbor nextState. We might need to adjust the else value.
-							if (POSWords.get(nextWord).get(nextState) != null) { 
-								observationScore = POSWords.get(nextWord).get(nextState); 
-								}
-							else { 
-								observationScore = -10.0; 
-								}
+							// If the word has never been seen before, add it to POSWords.
+							if (POSWords.get(nextWord) == null) { POSWords.put(nextWord, new HashMap<String,Double>()); }
+							// If the word has never been used as this type, give it a -10.0 score.
+							if (POSWords.get(nextWord).get(nextState) == null) { observationScore = -10.0; }
+							// Else, the word exists and has been used as this type. Give it its proper score.
+							else { observationScore = POSWords.get(nextWord).get(nextState); }
 							nextScore = currentScore + transitionScore + observationScore;
 							// If you haven't seen this next state before, put in your score for the next state
 							if (nextScores.get(nextState) == null || nextScores.get(nextState) <= nextScore) {
