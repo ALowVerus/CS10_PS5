@@ -218,7 +218,7 @@ public class HMM {
 				System.out.println("BACKTRACING");
 				
 				// Get the best end POS.
-				bestEndValue = 0.0;
+				bestEndValue = nextScores.get(nextScores.keySet().iterator().next());
 				currentPOS = sentenceStarter;
 				for (String POS : nextScores.keySet()) {
 					System.out.println("Best value is " + bestEndValue + ", current one is " + POS + " " + nextScores.get(POS));
@@ -239,13 +239,16 @@ public class HMM {
 					System.out.println("The POS is now " + currentPOS);
 					layersBack ++;
 				}
+				
+				System.out.println("\n List of strings is " + backtracedListPOS + "\n");
+				
 				// Write generated words to a string.
 				String backtracedStringPOS = "";
 				for (int i = 0; i < backtracedListPOS.size(); i ++) {
 					backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
 				}
 				// Write backtraced string into an output file.
-				resultTagsIn.write(backtracedStringPOS);
+				resultTagsIn.write(backtracedStringPOS + "\n");
 			}
 			
 			// Close testing file and results writer
