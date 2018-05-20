@@ -1,7 +1,7 @@
 import java.io.*;
 import java.util.*;
 
-public class HMM {
+public class BigramModeler {
 	// Define where input files come from. Simple is the boring file, brown is the complex file.
 	static final String textFolder = "inputs/ps5/";
 	static final String textSubject = "brown";
