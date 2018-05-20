@@ -168,6 +168,7 @@ public class HMM {
 			Iterator<String> currentScoresIterator, neighborPOSs;
 			
 			// Keep going until we run out of lines to read.
+			Boolean ranOnce = false;
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
 				currentScores = new HashMap<String, Double>(); 
@@ -177,87 +178,91 @@ public class HMM {
 				
 				// Iterate through each line in the sentence.
 				splitSentenceLine = sentenceLine.split(" ");
-				for (String nextWord : splitSentenceLine) {
-					// If the word has never been seen before, add it to POSWords.
-					if (POSWords.get(nextWord) == null) { 
-						POSWords.put(nextWord, new HashMap<String,Double>());
-						System.out.println(nextWord + " was added to the POSWords");
-					}
-					System.out.println("The next word is ~" + nextWord + "~.");
-					System.out.println("Current states are " + currentScores.keySet() + ".");
-					// Make new backpointer frame for this word.
-					thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
-					// Iterate through current scores.
-					currentScoresIterator = currentScores.keySet().iterator();
-					while (currentScoresIterator.hasNext()) {
-						currentPOS = currentScoresIterator.next();
-						// Making a score for the current state to the next state with the next word.
-						System.out.println("The neighbors of " + currentPOS + " are " + POSTransitions.outNeighbors(currentPOS));
-						currentScore = currentScores.get(currentPOS);
-						neighborPOSs = POSTransitions.outNeighbors(currentPOS).iterator();
-						while (neighborPOSs.hasNext()) {
-							String nextPOS = neighborPOSs.next();
-							System.out.println("Checking " + nextPOS);
-							transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
-							// If the word has never been used as this type, give it a -10.0 score.
-							if (POSWords.get(nextWord).get(nextPOS) == null) { observationScore = -10.0; }
-							// Else, the word exists and has been used as this type. Give it its proper score.
-							else { observationScore = POSWords.get(nextWord).get(nextPOS); }
-							nextScore = currentScore + transitionScore + observationScore;
-							// If you haven't seen this next state before, put in your score for the next state
-							if (nextScores.get(nextPOS) == null || nextScores.get(nextPOS) <= nextScore) {
-								nextScores.put(nextPOS, nextScore);
-								thisFrame.put(nextPOS, currentPOS);
-							}
+				System.out.println(splitSentenceLine[0]);
+				if (!ranOnce) {
+					for (String nextWord : splitSentenceLine) {
+						// If the word has never been seen before, add it to POSWords.
+						if (POSWords.get(nextWord) == null) { 
+							POSWords.put(nextWord, new HashMap<String,Double>());
+							System.out.println(nextWord + " was added to the POSWords");
 						}
-						
+						System.out.println("The next word is ~" + nextWord + "~.");
+						System.out.println("Current states are " + currentScores.keySet() + ".");
+						// Make new backpointer frame for this word.
+						thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
+						// Iterate through current scores.
+						currentScoresIterator = currentScores.keySet().iterator();
+						while (currentScoresIterator.hasNext()) {
+							currentPOS = currentScoresIterator.next();
+							// Making a score for the current state to the next state with the next word.
+							System.out.println("The neighbors of " + currentPOS + " are " + POSTransitions.outNeighbors(currentPOS));
+							currentScore = currentScores.get(currentPOS);
+							neighborPOSs = POSTransitions.outNeighbors(currentPOS).iterator();
+							while (neighborPOSs.hasNext()) {
+								String nextPOS = neighborPOSs.next();
+								System.out.println("Checking " + nextPOS);
+								transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
+								// If the word has never been used as this type, give it a -10.0 score.
+								if (POSWords.get(nextWord).get(nextPOS) == null) { observationScore = -10.0; }
+								// Else, the word exists and has been used as this type. Give it its proper score.
+								else { observationScore = POSWords.get(nextWord).get(nextPOS); }
+								nextScore = currentScore + transitionScore + observationScore;
+								// If you haven't seen this next state before, put in your score for the next state
+								if (nextScores.get(nextPOS) == null || nextScores.get(nextPOS) <= nextScore) {
+									nextScores.put(nextPOS, nextScore);
+									thisFrame.put(nextPOS, currentPOS);
+								}
+							}
+							
+						}
+						// Reset states and scores after you've iterated. Clear and put, rather than set=.
+						currentScores.clear();
+						currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
+						backtraces.add(thisFrame);
+						ranOnce = true;
 					}
-					// Reset states and scores after you've iterated. Clear and put, rather than set=.
-					currentScores.clear();
-					currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
-					backtraces.add(thisFrame);
-				}
-				
-				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
-				System.out.println("\nBACKTRACING\n");
-				
-				// Print out the state of the frames.
-				for (HashMap<String,String> frame : backtraces) {
-					System.out.println(frame);
-				}
-				
-				// Get the best end POS.
-				bestEndValue = nextScores.get(nextScores.keySet().iterator().next());
-				currentPOS = sentenceStarter;
-				for (String POS : nextScores.keySet()) {
-					System.out.println("Best value is " + bestEndValue + ", current one is " + POS + " " + nextScores.get(POS));
-					if (bestEndValue < nextScores.get(POS)) {
-						bestEndValue = nextScores.get(POS);
-						currentPOS = POS;
+					
+					// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
+					System.out.println("\nBACKTRACING\n");
+					
+					// Print out the state of the frames.
+					for (HashMap<String,String> frame : backtraces) {
+						System.out.println(frame);
 					}
+					
+					// Get the best end POS.
+					bestEndValue = nextScores.get(nextScores.keySet().iterator().next());
+					currentPOS = sentenceStarter;
+					for (String POS : nextScores.keySet()) {
+						System.out.println("Best value is " + bestEndValue + ", current one is " + POS + " " + nextScores.get(POS));
+						if (bestEndValue < nextScores.get(POS)) {
+							bestEndValue = nextScores.get(POS);
+							currentPOS = POS;
+						}
+					}
+					
+					// Generate the list.
+					ArrayList<String> backtracedListPOS = new ArrayList<String>();
+					int layersBack = 0;
+					while (currentPOS != null) {
+						System.out.println(currentPOS + " has been added.");
+						backtracedListPOS.add(currentPOS);
+						nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
+						currentPOS = nextLayer.get(currentPOS);
+						System.out.println("The POS is now " + currentPOS);
+						layersBack ++;
+					}
+					
+					System.out.println("\n List of strings is " + backtracedListPOS + "\n");
+					
+					// Write generated words to a string.
+					String backtracedStringPOS = "";
+					for (int i = 0; i < backtracedListPOS.size(); i ++) {
+						backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
+					}
+					// Write backtraced string into an output file.
+					resultTagsIn.write(backtracedStringPOS + "\n");
 				}
-				
-				// Generate the list.
-				ArrayList<String> backtracedListPOS = new ArrayList<String>();
-				int layersBack = 0;
-				while (currentPOS != null) {
-					System.out.println(currentPOS + " has been added.");
-					backtracedListPOS.add(currentPOS);
-					nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
-					currentPOS = nextLayer.get(currentPOS);
-					System.out.println("The POS is now " + currentPOS);
-					layersBack ++;
-				}
-				
-				System.out.println("\n List of strings is " + backtracedListPOS + "\n");
-				
-				// Write generated words to a string.
-				String backtracedStringPOS = "";
-				for (int i = 0; i < backtracedListPOS.size(); i ++) {
-					backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
-				}
-				// Write backtraced string into an output file.
-				resultTagsIn.write(backtracedStringPOS + "\n");
 			}
 			
 			// Close testing file and results writer
