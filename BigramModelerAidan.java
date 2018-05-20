@@ -4,18 +4,9 @@ import java.util.*;
 public class BigramModelerAidan {
 	// Define where input files come from. Simple is the boring file, brown is the complex file.
 	static final String textFolder = "inputs/ps5/";
-	static final String textSubject = "brown";
+	static final String textSubject = "simple";
 	static final String sentenceStarter = "#";
-	
-	public static BufferedReader load(String URL) {
-		try {return new BufferedReader(new FileReader(URL));}
-		catch (FileNotFoundException e) {e.printStackTrace(); return null;} 
-	}
-	public static BufferedWriter write(String URL) {
-		try {return new BufferedWriter(new FileWriter(URL));}
-		catch (FileNotFoundException e) {e.printStackTrace(); return null;}
-		catch (IOException e) {e.printStackTrace();; return null;}
-	}
+	static final Double nullScore = -9.5;
 	
 	public static void main(String[] args) throws IOException {
 		try {
@@ -28,10 +19,6 @@ public class BigramModelerAidan {
 			 */
 			
 			System.out.println("TRAINING BEGINS");
-			
-			// Create bufferedReaders training files
-			BufferedReader trainSentences = load(textFolder + textSubject + "-train-sentences.txt");
-			BufferedReader trainTags = load(textFolder + textSubject + "-train-tags.txt");
 			
 			// Generate all required data structures for training
 			/**
@@ -56,6 +43,10 @@ public class BigramModelerAidan {
 				POSTransitions.insertVertex(POS);
 			}
 			
+			// Create bufferedReaders training files
+			BufferedReader trainSentences = ModelerFunctions.load(textFolder + textSubject + "-train-sentences.txt");
+			BufferedReader trainTags = ModelerFunctions.load(textFolder + textSubject + "-train-tags.txt");
+			
 			// READ ALL WORDS INTO PARTS OF SPEECH MAP.
 			// While there is another line, read it.
 			while ((tagLine = trainTags.readLine()) != null) {
@@ -75,10 +66,11 @@ public class BigramModelerAidan {
 					if (POSWord == null) {
 						POSWord = new HashMap<String,Double>();
 					}
+					// If the word has already been seen as this POS, increment.
 					if (POSWord.containsKey(nextTag)) {
-						Double numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(nextTag);
-						POSWord.put(nextTag, numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
+						POSWord.put(nextTag, POSWord.get(nextTag) + 1);
 					}
+					// If the word has not been seen as this POS, initialize.
 					else {
 						POSWord.put(nextTag, 1.0);
 					}
@@ -137,16 +129,7 @@ public class BigramModelerAidan {
 			
 			// Change the POSWords map from using rote numbers to percentage hits.
 			for (String word : POSWords.keySet()) {
-				
-				// Get the sum of hits
-				Double sum = 0.0;
-				for (String POS : POSWords.get(word).keySet()) {
-					sum += POSWords.get(word).get(POS);
-				}
-				// Turn all hits into percentages
-				for (String POS : POSWords.get(word).keySet()) {
-					POSWords.get(word).put(POS, Math.log(POSWords.get(word).get(POS) / sum));
-				}
+				ModelerFunctions.logify(POSWords.get(word));
 			}
 			
 			/*
@@ -157,19 +140,19 @@ public class BigramModelerAidan {
 			System.out.println(POSTransitions);
 			
 			// Create bufferedReader for testing sentences and bufferedWriter for putting output.
-			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
-			BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
+			BufferedReader testSentences = ModelerFunctions.load(textFolder + textSubject + "-test-sentences.txt");
+			BufferedWriter resultTagsIn = ModelerFunctions.write(textFolder + textSubject + "-bigram-tags.txt");
 			
 			// Allocate memory to stuff that we need.
 			HashMap<String, Double> currentScores, nextScores;
 			String currentPOS; 
 			HashMap<String, String> thisFrame, nextLayer;
 			ArrayList<HashMap<String, String>> backtraces;
-			Double currentScore, transitionScore, observationScore, nextScore, bestEndValue;
+			Double currentScore, transitionScore, observationScore, nextScore;
 			Iterator<String> currentScoresIterator, neighborPOSs;
 			
 			// Keep going until we run out of lines to read.
-			Boolean ranOnce = false;
+			int sentenceNumber = 1;
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
 				currentScores = new HashMap<String, Double>(); 
@@ -195,10 +178,10 @@ public class BigramModelerAidan {
 							transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
 							// If the word has never been used as this type, give it a -10.0 score.
 							if (POSWords.get(nextWord) == null) {
-								observationScore = -100.0;
+								observationScore = nullScore;
 							}
 							else if (POSWords.get(nextWord).get(nextPOS) == null) { 
-								observationScore = -100.0; 
+								observationScore = nullScore; 
 							}
 							// Else, the word exists and has been used as this type. Give it its proper score.
 							else { observationScore = POSWords.get(nextWord).get(nextPOS); }
@@ -215,20 +198,18 @@ public class BigramModelerAidan {
 					currentScores.clear();
 					currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
 					backtraces.add(thisFrame);
-					ranOnce = true;
 				}
 				
 				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 				
-				// Get the best end POS.
-				bestEndValue = nextScores.get(nextScores.keySet().iterator().next());
-				currentPOS = sentenceStarter;
-				for (String POS : nextScores.keySet()) {
-					if (bestEndValue < nextScores.get(POS)) {
-						bestEndValue = nextScores.get(POS);
-						currentPOS = POS;
-					}
+				System.out.println("\nI just went through sentence number " + sentenceNumber + ".");
+				for (HashMap<String, String> frame : backtraces) {
+					System.out.println(frame);
 				}
+				sentenceNumber ++;
+				
+				// Get the best end POS.
+				currentPOS = ModelerFunctions.getBestFromHashMapStringDouble(nextScores);
 				
 				// Generate the list.
 				ArrayList<String> backtracedListPOS = new ArrayList<String>();
@@ -253,34 +234,10 @@ public class BigramModelerAidan {
 			testSentences.close();
 			resultTagsIn.close();
 			
-			/*
-			 * CHECK TAGS AGAINST GIVEN.
-			 */
-			
-			// Open test and result tags
-			BufferedReader testTags = load(textFolder + textSubject + "-test-tags.txt");
-			BufferedReader resultTagsOut = load(textFolder + textSubject + "-result-tags.txt");
-			// Run through each line of the test and result tags
-			String testTagsLine, resultTagsOutLine;
-			String[] splitTestTagsLine, splitResultTagsOutLine;
-			String testTag, resultTagOut;
-			int goodCalls = 0, badCalls = 0;
-			while ((testTagsLine = testTags.readLine()) != null 
-					&& (resultTagsOutLine = resultTagsOut.readLine()) != null) {
-				splitTestTagsLine = testTagsLine.split(" "); 
-				splitResultTagsOutLine = resultTagsOutLine.split(" ");
-				for (int i = 0; i < splitTestTagsLine.length; i ++) {
-					testTag = splitTestTagsLine[i]; resultTagOut = splitResultTagsOutLine[i];
-					if (testTag.equals(resultTagOut)) { goodCalls ++; }
-					else { badCalls ++; }
-				}
-			}
-			// Close testing tags and result tags
-			testTags.close();
-			resultTagsOut.close();
-			// Print results
-			System.out.println("Good calls: " + String.valueOf(goodCalls));
-			System.out.println("Bad calls: " + String.valueOf(badCalls));
+			// Check results.
+			System.out.println("\n");
+			ModelerFunctions.checkTags(textFolder + textSubject + "-test-tags.txt", textFolder + textSubject + "-bigram-tags.txt");
+
 		}
 		catch (NullPointerException e) {
 			e.printStackTrace();
