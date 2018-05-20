@@ -8,13 +8,27 @@ public class BigramModeler {
 	static final String sentenceStarter = "#";
 	
 	public static BufferedReader load(String URL) {
-		try {return new BufferedReader(new FileReader(URL));}
-		catch (FileNotFoundException e) {e.printStackTrace(); return null;} 
+		try {
+			return new BufferedReader(new FileReader(URL));
+		}
+		catch (FileNotFoundException e) {
+			e.printStackTrace(); 
+			return null;
+		} 
 	}
+	
 	public static BufferedWriter write(String URL) {
-		try {return new BufferedWriter(new FileWriter(URL));}
-		catch (FileNotFoundException e) {e.printStackTrace(); return null;}
-		catch (IOException e) {e.printStackTrace();; return null;}
+		try {
+			return new BufferedWriter(new FileWriter(URL));
+		}
+		catch (FileNotFoundException e) {
+			e.printStackTrace(); 
+			return null;
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 	
 	public static void main(String[] args) throws IOException {
@@ -34,15 +48,13 @@ public class BigramModeler {
 			BufferedReader trainTags = load(textFolder + textSubject + "-train-tags.txt");
 			
 			// Generate all required data structures for training
-			/**
-			 * THE FOLLOWING MIGHT MAKE MORE SENSE WITH WORDS AS KEYS AND POS AS VALUE
-			 */
+
 			// Inputs word, get out HashMap of POS with # of times used as POS
 			HashMap<String, HashMap<String, Double>> POSWords = new HashMap<String, HashMap<String, Double>>(); 
 			// Inputs POS, gets # of times it transitions to other POS
 			AdjacencyMapGraph<String, Double> POSTransitions = new AdjacencyMapGraph<String, Double>(); 
 			
-			// Put all the parts of speech we need into a list.
+			// Put all the parts of speech and punctuation we need into a list.
 			ArrayList<String> POSList = new ArrayList<String>(
 					Arrays.asList(
 							"ADJ", "ADV", "CNJ", "DET", "EX", "FW", "MOD", 
@@ -51,8 +63,9 @@ public class BigramModeler {
 							",", "``", "VBZ", "''", "*", ":", "(", ")", "--", "'", "NIL" // for the brown corpus
 					)
 			);
+			
 			// Add all parts of speech as objects into the graph.
-			for (String POS : POSList) {
+			for (String POS: POSList) {
 				POSTransitions.insertVertex(POS);
 			}
 			
@@ -76,8 +89,8 @@ public class BigramModeler {
 						POSWord = new HashMap<String,Double>();
 					}
 					if (POSWord.containsKey(nextTag)) {
-						Double numberOfTimesThatThisWordHasBeenUsedAsThisPOS = POSWord.get(nextTag);
-						POSWord.put(nextTag, numberOfTimesThatThisWordHasBeenUsedAsThisPOS + 1);
+						Double wordAsPOS = POSWord.get(nextTag);
+						POSWord.put(nextTag, wordAsPOS + 1);
 					}
 					else {
 						POSWord.put(nextTag, 1.0);
@@ -85,7 +98,9 @@ public class BigramModeler {
 					POSWords.put(nextWord, POSWord);
 					// Get the number of times POS1 has gone to POS2
 					Double n;
-					if (POSTransitions.getLabel(currentTag, nextTag) == null) { n = 1.0;}
+					if (POSTransitions.getLabel(currentTag, nextTag) == null) { 
+						n = 1.0;
+					}
 					else { 
 						n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
 						POSTransitions.removeDirected(currentTag, nextTag);
@@ -122,7 +137,7 @@ public class BigramModeler {
 				ArrayList<String> toBeRemoved = new ArrayList<String>();
 				// Iterate through neighbors again, changing routes to percentage hits
 				
-				// MAKE MY FAKE LIST, AND ADD EVERYTHING TO IT
+				// Make a temporary list and add everything to it
 				neighborIterator = POSTransitions.outNeighbors(currentVertex).iterator();
 				while (neighborIterator.hasNext()) {
 					String neighborVertex = neighborIterator.next();
@@ -154,11 +169,13 @@ public class BigramModeler {
 			 */
 			
 			System.out.println("TESTING BEGUN");
-			System.out.println(POSTransitions);
+			//System.out.println(POSTransitions);
 			
 			// Create bufferedReader for testing sentences and bufferedWriter for putting output.
-			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
-			BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
+//			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
+//			BufferedWriter resultTagsIn = write(textFolder + textSubject + "-result-tags.txt");
+			BufferedReader testSentences = load(textFolder + "basic_testing.txt");
+			BufferedWriter resultTagsIn = write(textFolder + "testing_results.txt");
 			
 			// Allocate memory to stuff that we need.
 			HashMap<String, Double> currentScores, nextScores;
@@ -169,10 +186,9 @@ public class BigramModeler {
 			Iterator<String> currentScoresIterator, neighborPOSs;
 			
 			// Keep going until we run out of lines to read.
-			Boolean ranOnce = false;
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
-				currentScores = new HashMap<String, Double>(); 
+				currentScores = new HashMap<String, Double>();
 				currentScores.put(sentenceStarter, 0.0);
 				nextScores = new HashMap<String, Double>();
 				backtraces = new ArrayList<HashMap<String, String>>();
@@ -193,7 +209,7 @@ public class BigramModeler {
 						while (neighborPOSs.hasNext()) {
 							String nextPOS = neighborPOSs.next();
 							transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
-							// If the word has never been used as this type, give it a -10.0 score.
+							// If the word has never been used as this type, give it a penalty score.
 							if (POSWords.get(nextWord) == null) {
 								observationScore = -9.5;
 							}
@@ -201,8 +217,13 @@ public class BigramModeler {
 								observationScore = -9.5; 
 							}
 							// Else, the word exists and has been used as this type. Give it its proper score.
-							else { observationScore = POSWords.get(nextWord).get(nextPOS); }
+							else { 
+								observationScore = POSWords.get(nextWord).get(nextPOS); 
+								}
+							
+							// Compute the total score of the transition from the current POS to the next and its word
 							nextScore = currentScore + transitionScore + observationScore;
+							
 							// If you haven't seen this next state before, put in your score for the next state
 							if (nextScores.get(nextPOS) == null || nextScores.get(nextPOS) <= nextScore) {
 								nextScores.put(nextPOS, nextScore);
@@ -215,8 +236,8 @@ public class BigramModeler {
 					currentScores.clear();
 					currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
 					backtraces.add(thisFrame);
-					ranOnce = true;
 				}
+				
 				
 				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 				
@@ -237,12 +258,12 @@ public class BigramModeler {
 					backtracedListPOS.add(currentPOS);
 					nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
 					currentPOS = nextLayer.get(currentPOS);
-					layersBack ++;
+					layersBack++;
 				}
 								
 				// Write generated words to a string.
 				String backtracedStringPOS = "";
-				for (int i = 0; i < backtracedListPOS.size(); i ++) {
+				for (int i = 0; i < backtracedListPOS.size(); i++) {
 					backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
 				}
 				// Write backtraced string into an output file.
@@ -260,6 +281,7 @@ public class BigramModeler {
 			// Open test and result tags
 			BufferedReader testTags = load(textFolder + textSubject + "-test-tags.txt");
 			BufferedReader resultTagsOut = load(textFolder + textSubject + "-result-tags.txt");
+			
 			// Run through each line of the test and result tags
 			String testTagsLine, resultTagsOutLine;
 			String[] splitTestTagsLine, splitResultTagsOutLine;
@@ -271,13 +293,18 @@ public class BigramModeler {
 				splitResultTagsOutLine = resultTagsOutLine.split(" ");
 				for (int i = 0; i < splitTestTagsLine.length; i ++) {
 					testTag = splitTestTagsLine[i]; resultTagOut = splitResultTagsOutLine[i];
-					if (testTag.equals(resultTagOut)) { goodCalls ++; }
-					else { badCalls ++; }
+					if (testTag.equals(resultTagOut)) {
+						goodCalls++; 
+					}
+					else { 
+						badCalls++; 
+					}
 				}
 			}
 			// Close testing tags and result tags
 			testTags.close();
 			resultTagsOut.close();
+			
 			// Print results
 			System.out.println("Good calls: " + String.valueOf(goodCalls));
 			System.out.println("Bad calls: " + String.valueOf(badCalls));
