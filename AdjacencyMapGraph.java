@@ -110,6 +110,18 @@ public class AdjacencyMapGraph<V,E> implements Graph<V,E> {
 	 * Returns a string representation of the vertex and edge lists.
 	 */
 	public String toString() {
-		return "Vertices: " + out.keySet().toString() + "\nOut edges: " + out.toString();
+		String s = "{";
+		for (V outerKey : out.keySet()) {
+			if (!out.get(outerKey).isEmpty()) {
+				s += "'" + outerKey + "'={";
+				for (V innerKey : out.get(outerKey).keySet()) {
+					s += innerKey + "=" + out.get(outerKey).get(innerKey) + ", ";
+				}
+				s = s.substring(0, s.length()-2) + "} ";
+			}
+		}
+		s += "}";
+		return "Vertices: " + out.keySet().toString() + "\nOut edges: " + s;
+		//return "Vertices: " + out.keySet().toString() + "\nOut edges: " + out.toString();
 	}
 }

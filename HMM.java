@@ -24,7 +24,7 @@ public class HMM {
 			String[] splitTagLine, splitSentenceLine;
 			
 			/*
-			 * THE EASY PART: TRAINING THE MAP AND ADJACENCY GRAPH.
+			 * TRAINING THE MAP AND ADJACENCY GRAPH.
 			 */
 			
 			System.out.println("TRAINING BEGINS");
@@ -101,6 +101,10 @@ public class HMM {
 			
 			System.out.println("TRAINING COMPLETE");
 			
+			/*
+			 * CONVERTING THE MAP AND ADJACENCY GRAPH TO PERCENTAGE HITS.
+			 */
+			
 			// Change the POSTransitions graph from using rote numbers to percentage hits.
 			Iterator<String> vertexIterator = POSTransitions.vertices().iterator();
 			Iterator<String> neighborIterator;
@@ -145,10 +149,11 @@ public class HMM {
 			}
 						
 			/*
-			 * THE HARD PART: INPUTTING TEST FILES
+			 * INTERPRETING TEST FILES.
 			 */
 			
 			System.out.println("TESTING BEGUN");
+			System.out.println(POSTransitions);
 			
 			// Create bufferedReader for testing sentences and bufferedWriter for putting output.
 			BufferedReader testSentences = load(textFolder + textSubject + "-test-sentences.txt");
@@ -156,7 +161,7 @@ public class HMM {
 			
 			// Allocate memory to stuff that we need.
 			HashMap<String, Double> currentScores, nextScores;
-			String nextWord, currentPOS; 
+			String currentPOS; 
 			HashMap<String, String> thisFrame, nextLayer;
 			ArrayList<HashMap<String, String>> backtraces;
 			Double currentScore, transitionScore, observationScore, nextScore, bestEndValue;
@@ -165,15 +170,14 @@ public class HMM {
 			// Keep going until we run out of lines to read.
 			while ((sentenceLine = testSentences.readLine()) != null) {
 				// Create required data structures for testing files, regenerate each line
-				currentScores = new HashMap<String, Double>(); currentScores.put(sentenceStarter, 0.0);
+				currentScores = new HashMap<String, Double>(); 
+				currentScores.put(sentenceStarter, 0.0);
 				nextScores = new HashMap<String, Double>();
 				backtraces = new ArrayList<HashMap<String, String>>();
 				
 				// Iterate through each line in the sentence.
 				splitSentenceLine = sentenceLine.split(" ");
-				for(int i = 0; i < splitSentenceLine.length; i++) {
-					// Get your next word.
-					nextWord = splitSentenceLine[i];
+				for (String nextWord : splitSentenceLine) {
 					// If the word has never been seen before, add it to POSWords.
 					if (POSWords.get(nextWord) == null) { 
 						POSWords.put(nextWord, new HashMap<String,Double>());
@@ -215,7 +219,12 @@ public class HMM {
 				}
 				
 				// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
-				System.out.println("BACKTRACING");
+				System.out.println("\nBACKTRACING\n");
+				
+				// Print out the state of the frames.
+				for (HashMap<String,String> frame : backtraces) {
+					System.out.println(frame);
+				}
 				
 				// Get the best end POS.
 				bestEndValue = nextScores.get(nextScores.keySet().iterator().next());
@@ -255,8 +264,10 @@ public class HMM {
 			testSentences.close();
 			resultTagsIn.close();
 			
+			/*
+			 * CHECK TAGS AGAINST GIVEN.
+			 */
 			
-			// TEST RESULT TAGS AGAINST GIVEN TAGS
 			// Open test and result tags
 			BufferedReader testTags = load(textFolder + textSubject + "-test-tags.txt");
 			BufferedReader resultTagsOut = load(textFolder + textSubject + "-result-tags.txt");
