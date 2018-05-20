@@ -195,10 +195,10 @@ public class HMM {
 							transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
 							// If the word has never been used as this type, give it a -10.0 score.
 							if (POSWords.get(nextWord) == null) {
-								observationScore = -100.0;
+								observationScore = -9.5;
 							}
 							else if (POSWords.get(nextWord).get(nextPOS) == null) { 
-								observationScore = -100.0; 
+								observationScore = -9.5; 
 							}
 							// Else, the word exists and has been used as this type. Give it its proper score.
 							else { observationScore = POSWords.get(nextWord).get(nextPOS); }
