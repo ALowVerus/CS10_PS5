@@ -7,7 +7,41 @@ public class BigramModeler {
 	static final String sentenceStarter = "#";
 	static final Double nullScore = -9.5;
 	
-	public static ArrayList training(String sentenceURL, String tagURL) throws IOException {
+	public static void putInPOSWords(String nextTag, String nextWord, HashMap<String, Double> POSWord, HashMap<String, HashMap<String, Double>> POSWords) {
+		// Check that the word exists, and if it doesn't, initialize to a blank
+		if (POSWord == null) {
+			POSWord = new HashMap<String,Double>();
+		}
+		// If the word has already been seen as this POS, increment.
+		if (POSWord.containsKey(nextTag)) {
+			POSWord.put(nextTag, POSWord.get(nextTag) + 1);
+		}
+		// If the word has not been seen as this POS, initialize.
+		else {
+			POSWord.put(nextTag, 1.0);
+		}
+		POSWords.put(nextWord, POSWord);
+	}
+	
+	public static void putInPOSTransitions(AdjacencyMapGraph<String, Double> POSTransitions, String nextTag, String currentTag) {
+		// Check that POS2 is in the graph
+		if (!POSTransitions.hasVertex(nextTag)) { 
+			POSTransitions.insertVertex(nextTag); 
+		}
+		// Get the number of times POS1 has gone to POS2
+		Double n;
+		if (POSTransitions.getLabel(currentTag, nextTag) == null) { 
+			n = 1.0;
+		}
+		else { 
+			n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
+			POSTransitions.removeDirected(currentTag, nextTag);
+		}
+		// Insert a directed edge with 1 more than before
+		POSTransitions.insertDirected(currentTag, nextTag, n);
+	}
+	
+	public static HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> training(String sentenceURL, String tagURL) throws IOException {
 		
 		String tagLine, sentenceLine;
 		String[] splitTagLine, splitSentenceLine;
@@ -36,41 +70,17 @@ public class BigramModeler {
 			splitSentenceLine = sentenceLine.split(" ");
 			// Iterate through the split lines.
 			String currentTag = sentenceStarter;
+			
 			for(int i = 0; i < splitTagLine.length; i++) {
 				// Get your next tag and word.
 				String nextTag = splitTagLine[i];
 				String nextWord = splitSentenceLine[i];
 				// Add next tag to POS map.
 				HashMap<String, Double> POSWord = POSWords.get(nextWord);
-				// Check that the word exists, and if it doesn't, initialize to a blank
-				if (POSWord == null) {
-					POSWord = new HashMap<String,Double>();
-				}
-				// If the word has already been seen as this POS, increment.
-				if (POSWord.containsKey(nextTag)) {
-					POSWord.put(nextTag, POSWord.get(nextTag) + 1);
-				}
-				// If the word has not been seen as this POS, initialize.
-				else {
-					POSWord.put(nextTag, 1.0);
-				}
-				POSWords.put(nextWord, POSWord);
+
+				putInPOSWords(nextTag, nextWord, POSWord, POSWords);
+				putInPOSTransitions(POSTransitions, nextTag, currentTag);
 				
-				// Check that POS2 is in the graph
-				if (!POSTransitions.hasVertex(nextTag)) { 
-					POSTransitions.insertVertex(nextTag); 
-				}
-				// Get the number of times POS1 has gone to POS2
-				Double n;
-				if (POSTransitions.getLabel(currentTag, nextTag) == null) { 
-					n = 1.0;
-				}
-				else { 
-					n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
-					POSTransitions.removeDirected(currentTag, nextTag);
-				}
-				// Insert a directed edge with 1 more than before
-				POSTransitions.insertDirected(currentTag, nextTag, n);
 				// Reset currentTag to nextTag
 				currentTag = nextTag;
 			}
@@ -86,7 +96,6 @@ public class BigramModeler {
 		 */
 		
 		// Change the POSTransitions graph from using rote numbers to percentage hits.
-		Iterator<String> neighborIterator;
 		for (String currentVertex : POSTransitions.vertices()) {
 			// Iterate through neighbors of current vertex, get the total number of hits
 			Double currentValue, sum = 0.0;
@@ -114,18 +123,18 @@ public class BigramModeler {
 			ModelerFunctions.logify(POSWords.get(word));
 		}
 		
-		ArrayList data = new ArrayList();
-		data.add(POSWords);
-		data.add(POSTransitions);
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data = 
+				new HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>>();
+		data.put(POSWords, POSTransitions);
 		return data;
 	}
 	
 	/*
 	 * Return the parts of speech for a given string.
 	 */
-	public static String viterbi(ArrayList data, String sentenceLine) {
-		HashMap<String, HashMap<String, Double>> POSWords = (HashMap<String, HashMap<String, Double>>)data.get(0);
-		AdjacencyMapGraph<String, Double> POSTransitions = (AdjacencyMapGraph<String, Double>)data.get(1);
+	public static String viterbi(HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data, String sentenceLine) {
+		HashMap<String, HashMap<String, Double>> POSWords = data.keySet().iterator().next();
+		AdjacencyMapGraph<String, Double> POSTransitions = data.get(POSWords);
 		// Allocate memory to stuff that we need.
 		HashMap<String, Double> currentScores, nextScores; 
 		HashMap<String, String> thisFrame, nextLayer;
@@ -179,7 +188,7 @@ public class BigramModeler {
 		
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 		
-		System.out.println("\nI just went through sentence.");
+		//System.out.println("\nI just went through sentence.");
 		for (HashMap<String, String> frame : backtraces) {
 			System.out.println(frame);
 		}
@@ -211,7 +220,7 @@ public class BigramModeler {
 		BufferedReader testSentences = ModelerFunctions.load(textURL + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = ModelerFunctions.write(textURL + "-bigram-tags.txt");
 		
-		ArrayList data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
 		
 		// Keep going until we run out of lines to read.
 		String sentenceLine, viterbiLine;
@@ -224,7 +233,7 @@ public class BigramModeler {
 		resultTagsIn.close();
 		
 		// Check results.
-		System.out.println("\n");
+		//System.out.println("\n");
 		ModelerFunctions.checkTags(textURL + "-test-tags.txt", textURL + "-bigram-tags.txt");
 	}
 }

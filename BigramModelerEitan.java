@@ -219,7 +219,7 @@ public class BigramModelerEitan {
 							// Else, the word exists and has been used as this type. Give it its proper score.
 							else { 
 								observationScore = POSWords.get(nextWord).get(nextPOS); 
-								}
+							}
 							
 							// Compute the total score of the transition from the current POS to the next and its word
 							nextScore = currentScore + transitionScore + observationScore;
