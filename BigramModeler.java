@@ -7,7 +7,7 @@ public class BigramModeler {
 	static final String sentenceStarter = "#";
 	static final Double nullScore = -9.5;
 	
-	public static ArrayList training(String sentenceURL, String tagURL) throws IOException {
+	public static HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> training(String sentenceURL, String tagURL) throws IOException {
 		
 		String tagLine, sentenceLine;
 		String[] splitTagLine, splitSentenceLine;
@@ -86,7 +86,6 @@ public class BigramModeler {
 		 */
 		
 		// Change the POSTransitions graph from using rote numbers to percentage hits.
-		Iterator<String> neighborIterator;
 		for (String currentVertex : POSTransitions.vertices()) {
 			// Iterate through neighbors of current vertex, get the total number of hits
 			Double currentValue, sum = 0.0;
@@ -114,18 +113,18 @@ public class BigramModeler {
 			ModelerFunctions.logify(POSWords.get(word));
 		}
 		
-		ArrayList data = new ArrayList();
-		data.add(POSWords);
-		data.add(POSTransitions);
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data = 
+				new HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>>();
+		data.put(POSWords, POSTransitions);
 		return data;
 	}
 	
 	/*
 	 * Return the parts of speech for a given string.
 	 */
-	public static String viterbi(ArrayList data, String sentenceLine) {
-		HashMap<String, HashMap<String, Double>> POSWords = (HashMap<String, HashMap<String, Double>>)data.get(0);
-		AdjacencyMapGraph<String, Double> POSTransitions = (AdjacencyMapGraph<String, Double>)data.get(1);
+	public static String viterbi(HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data, String sentenceLine) {
+		HashMap<String, HashMap<String, Double>> POSWords = data.keySet().iterator().next();
+		AdjacencyMapGraph<String, Double> POSTransitions = data.get(POSWords);
 		// Allocate memory to stuff that we need.
 		HashMap<String, Double> currentScores, nextScores; 
 		HashMap<String, String> thisFrame, nextLayer;
@@ -179,9 +178,9 @@ public class BigramModeler {
 		
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 		
-		System.out.println("\nI just went through sentence.");
+		//System.out.println("\nI just went through sentence.");
 		for (HashMap<String, String> frame : backtraces) {
-			System.out.println(frame);
+			//System.out.println(frame);
 		}
 		
 		// Get the best end POS.
@@ -211,7 +210,7 @@ public class BigramModeler {
 		BufferedReader testSentences = ModelerFunctions.load(textURL + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = ModelerFunctions.write(textURL + "-bigram-tags.txt");
 		
-		ArrayList data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
 		
 		// Keep going until we run out of lines to read.
 		String sentenceLine, viterbiLine;
@@ -224,7 +223,7 @@ public class BigramModeler {
 		resultTagsIn.close();
 		
 		// Check results.
-		System.out.println("\n");
+		//System.out.println("\n");
 		ModelerFunctions.checkTags(textURL + "-test-tags.txt", textURL + "-bigram-tags.txt");
 	}
 }
