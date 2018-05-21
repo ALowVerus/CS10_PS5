@@ -6,9 +6,9 @@ public class TrigramModeler {
 	static final String textURL = "inputs/ps5/brown";
 	static final String sentenceStarter = "#";
 	static final String sentenceBridge = "$";
-	static final Double nullScore = -9.5;
+	static final Double nullScore = -100.0;
 	
-	public static ArrayList training(String sentenceURL, String tagURL) throws IOException {
+	public static HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>> training(String sentenceURL, String tagURL) throws IOException {
 		
 		String tagLine, sentenceLine;
 		String[] splitTagLine, splitSentenceLine;
@@ -70,7 +70,6 @@ public class TrigramModeler {
 					AdjacencyMapGraph<String,Double> n1n2graph = new AdjacencyMapGraph<String,Double>();
 					n1n2graph.insertVertex(n2Vertex);
 					POSTransitions.insertDirected(n1Vertex, n2Vertex, n1n2graph); 
-					
 				}
 				AdjacencyMapGraph<String,Double> n1n2graph = POSTransitions.getLabel(n1Vertex, n2Vertex);
 				// Check that POS2 is in the graph
@@ -102,7 +101,6 @@ public class TrigramModeler {
 		 */
 		
 		// Change the POSTransitions graph from using rote numbers to percentage hits.
-		Iterator<String> neighborIterator;
 		for (String n1Vertex : POSTransitions.vertices()) {
 			for (String n2Vertex : POSTransitions.outNeighbors(n1Vertex)) {
 				AdjacencyMapGraph<String,Double> n1n2graph = POSTransitions.getLabel(n1Vertex, n2Vertex);
@@ -129,20 +127,18 @@ public class TrigramModeler {
 			ModelerFunctions.logify(POSWords.get(word));
 		}
 		
-		ArrayList data = new ArrayList();
-		data.add(POSWords);
-		data.add(POSTransitions);
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>> data = 
+				new HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>>();
+		data.put(POSWords, POSTransitions);
 		return data;
 	}
 	
 	/*
 	 * Return the parts of speech for a given string.
 	 */
-	public static String viterbi(ArrayList data, String sentenceLine, int sentenceNumber) {
-		HashMap<String, HashMap<String, Double>> POSWords = 
-				(HashMap<String, HashMap<String, Double>>)data.get(0);
-		AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>> POSTransitions = 
-				(AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>)data.get(1);
+	public static String viterbi(HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>> data, String sentenceLine, int sentenceNumber) {
+		HashMap<String, HashMap<String, Double>> POSWords = data.keySet().iterator().next();
+		AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>> POSTransitions = data.get(POSWords);
 		// Allocate memory to stuff that we need.
 		AdjacencyMapGraph<String,Double> currentScores, nextScores = new AdjacencyMapGraph<String,Double>(); 
 		AdjacencyMapGraph<String, String> thisFrame, nextLayer;
@@ -210,7 +206,9 @@ public class TrigramModeler {
 		}
 		
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
-		System.out.println("\nI just went through sentence " + sentenceNumber + ".");
+		if (sentenceNumber % 250 == 0) {
+			System.out.println("\nI just went through sentence " + sentenceNumber + ".");
+		}
 		// Get initial values for n1 and n2.
 		String n2best = null, n3best = null;
 		Iterator<String> n2bestIterator = nextScores.vertices().iterator();
@@ -264,7 +262,7 @@ public class TrigramModeler {
 		BufferedReader testSentences = ModelerFunctions.load(textURL + "-test-sentences.txt");
 		BufferedWriter resultTagsIn = ModelerFunctions.write(textURL + "-trigram-tags.txt");
 		
-		ArrayList data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
+		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>> data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
 		
 		// Keep going until we run out of lines to read.
 		String sentenceLine;

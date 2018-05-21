@@ -189,9 +189,9 @@ public class BigramModeler {
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 		
 		//System.out.println("\nI just went through sentence.");
-		for (HashMap<String, String> frame : backtraces) {
-			System.out.println(frame);
-		}
+//		for (HashMap<String, String> frame: backtraces) {
+//			System.out.println(frame);
+//		}
 		
 		// Get the best end POS.
 		String tracingPOS = ModelerFunctions.getBestFromHashMapStringDouble(nextScores);
@@ -203,7 +203,7 @@ public class BigramModeler {
 			backtracedListPOS.add(tracingPOS);
 			nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
 			tracingPOS = nextLayer.get(tracingPOS);
-			layersBack ++;
+			layersBack++;
 		}
 						
 		// Write generated words to a string.
@@ -223,7 +223,7 @@ public class BigramModeler {
 		HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> data = training(textURL + "-train-sentences.txt", textURL + "-train-tags.txt");
 		
 		// Keep going until we run out of lines to read.
-		String sentenceLine, viterbiLine;
+		String sentenceLine;
 		while ((sentenceLine = testSentences.readLine()) != null) {
 			resultTagsIn.write(viterbi(data, sentenceLine) + "\n");
 		}
