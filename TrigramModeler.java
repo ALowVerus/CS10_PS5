@@ -138,7 +138,7 @@ public class TrigramModeler {
 	/*
 	 * Return the parts of speech for a given string.
 	 */
-	public static String viterbi(ArrayList data, String sentenceLine) {
+	public static String viterbi(ArrayList data, String sentenceLine, int sentenceNumber) {
 		HashMap<String, HashMap<String, Double>> POSWords = 
 				(HashMap<String, HashMap<String, Double>>)data.get(0);
 		AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>> POSTransitions = 
@@ -168,10 +168,20 @@ public class TrigramModeler {
 					// Making a score for the current state to the next state with the next word.
 					currentScore = currentScores.getLabel(n1Vertex, n2Vertex);
 					AdjacencyMapGraph<String,Double> n1n2graph = POSTransitions.getLabel(n1Vertex, n2Vertex);
-					n2neighborPOSs = n1n2graph.outNeighbors(n2Vertex).iterator();
+					if (n1n2graph == null) {
+						n2neighborPOSs = POSTransitions.vertices().iterator();
+					}
+					else {
+						n2neighborPOSs = n1n2graph.outNeighbors(n2Vertex).iterator();
+					}
 					while (n2neighborPOSs.hasNext()) {
 						String n3Vertex = n2neighborPOSs.next();
-						transitionScore = n1n2graph.getLabel(n2Vertex, n3Vertex);
+						if (n1n2graph == null) {
+							transitionScore = nullScore;
+						}
+						else {
+							transitionScore = n1n2graph.getLabel(n2Vertex, n3Vertex);
+						}
 						// If the word has never been used as this type, give it a -10.0 score.
 						observationScore = nullScore;
 						// If the word has been used before as this POS, give it an appropriate score.
@@ -184,8 +194,6 @@ public class TrigramModeler {
 						// Ensure that vertices exist.
 						if (!nextScores.hasVertex(n2Vertex)) { nextScores.insertVertex(n2Vertex); }
 						if (!nextScores.hasVertex(n3Vertex)) { nextScores.insertVertex(n3Vertex); }
-						System.out.println("n2vertex is " + n2Vertex + ", n3vertex is " + n3Vertex);
-						System.out.println("" + nextScores.getLabel(n2Vertex, n3Vertex));
 						// If check passes, super.
 						if (nextScores.getLabel(n2Vertex, n3Vertex) == null || nextScores.getLabel(n2Vertex, n3Vertex) <= nextScore) {
 							nextScores.removeDirected(n2Vertex, n3Vertex);
@@ -201,15 +209,18 @@ public class TrigramModeler {
 		}
 		
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
-		
-		System.out.println("\nI just went through sentence.");
-		for (HashMap<String, String> frame : backtraces) {
-			System.out.println(frame);
+		System.out.println("\nI just went through sentence " + sentenceNumber + ".");
+		// Get initial values for n1 and n2.
+		String n1best = null, n2best = null;
+		Iterator<String> n1bestIterator = nextScores.vertices().iterator();
+		while (n1best == null || n2best == null) {
+			n1best = n1bestIterator.next();
+			Iterator<String> n2bestIterator = nextScores.outNeighbors(n1best).iterator();
+			if (n2bestIterator.hasNext()) {
+				n2best = nextScores.outNeighbors(n1best).iterator().next();
+			}
 		}
-		
 		// Get the best end POS.
-		String n1best = nextScores.vertices().iterator().next();
-		String n2best = nextScores.outNeighbors(n1best).iterator().next();
 		Double bestScore = nextScores.getLabel(n1best, n2best);
 		for (String n1current : nextScores.vertices()) {
 			for (String n2current : nextScores.outNeighbors(n1current)) {
@@ -226,7 +237,7 @@ public class TrigramModeler {
 		// Generate the list.
 		ArrayList<String> backtracedListPOS = new ArrayList<String>();
 		int layersBack = 0;
-		while (tracingPOS != sentenceStarter) {
+		while (tracingPOS != sentenceBridge) {
 			backtracedListPOS.add(tracingPOS);
 			nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
 			tracingPOS = nextLayer.get(tracingPOS);
@@ -252,8 +263,10 @@ public class TrigramModeler {
 		
 		// Keep going until we run out of lines to read.
 		String sentenceLine;
+		int sentenceNumber = 1;
 		while ((sentenceLine = testSentences.readLine()) != null) {
-			resultTagsIn.write(viterbi(data, sentenceLine) + "\n");
+			resultTagsIn.write(viterbi(data, sentenceLine, sentenceNumber) + "\n");
+			sentenceNumber ++;
 		}
 		
 		// Close testing file and results writer
