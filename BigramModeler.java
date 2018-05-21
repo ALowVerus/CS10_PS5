@@ -7,6 +7,40 @@ public class BigramModeler {
 	static final String sentenceStarter = "#";
 	static final Double nullScore = -9.5;
 	
+	public static void putInPOSWords(String nextTag, String nextWord, HashMap<String, Double> POSWord, HashMap<String, HashMap<String, Double>> POSWords) {
+		// Check that the word exists, and if it doesn't, initialize to a blank
+		if (POSWord == null) {
+			POSWord = new HashMap<String,Double>();
+		}
+		// If the word has already been seen as this POS, increment.
+		if (POSWord.containsKey(nextTag)) {
+			POSWord.put(nextTag, POSWord.get(nextTag) + 1);
+		}
+		// If the word has not been seen as this POS, initialize.
+		else {
+			POSWord.put(nextTag, 1.0);
+		}
+		POSWords.put(nextWord, POSWord);
+	}
+	
+	public static void putInPOSTransitions(AdjacencyMapGraph<String, Double> POSTransitions, String nextTag, String currentTag) {
+		// Check that POS2 is in the graph
+		if (!POSTransitions.hasVertex(nextTag)) { 
+			POSTransitions.insertVertex(nextTag); 
+		}
+		// Get the number of times POS1 has gone to POS2
+		Double n;
+		if (POSTransitions.getLabel(currentTag, nextTag) == null) { 
+			n = 1.0;
+		}
+		else { 
+			n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
+			POSTransitions.removeDirected(currentTag, nextTag);
+		}
+		// Insert a directed edge with 1 more than before
+		POSTransitions.insertDirected(currentTag, nextTag, n);
+	}
+	
 	public static HashMap<HashMap<String, HashMap<String, Double>>, AdjacencyMapGraph<String, Double>> training(String sentenceURL, String tagURL) throws IOException {
 		
 		String tagLine, sentenceLine;
@@ -36,41 +70,17 @@ public class BigramModeler {
 			splitSentenceLine = sentenceLine.split(" ");
 			// Iterate through the split lines.
 			String currentTag = sentenceStarter;
+			
 			for(int i = 0; i < splitTagLine.length; i++) {
 				// Get your next tag and word.
 				String nextTag = splitTagLine[i];
 				String nextWord = splitSentenceLine[i];
 				// Add next tag to POS map.
 				HashMap<String, Double> POSWord = POSWords.get(nextWord);
-				// Check that the word exists, and if it doesn't, initialize to a blank
-				if (POSWord == null) {
-					POSWord = new HashMap<String,Double>();
-				}
-				// If the word has already been seen as this POS, increment.
-				if (POSWord.containsKey(nextTag)) {
-					POSWord.put(nextTag, POSWord.get(nextTag) + 1);
-				}
-				// If the word has not been seen as this POS, initialize.
-				else {
-					POSWord.put(nextTag, 1.0);
-				}
-				POSWords.put(nextWord, POSWord);
+
+				putInPOSWords(nextTag, nextWord, POSWord, POSWords);
+				putInPOSTransitions(POSTransitions, nextTag, currentTag);
 				
-				// Check that POS2 is in the graph
-				if (!POSTransitions.hasVertex(nextTag)) { 
-					POSTransitions.insertVertex(nextTag); 
-				}
-				// Get the number of times POS1 has gone to POS2
-				Double n;
-				if (POSTransitions.getLabel(currentTag, nextTag) == null) { 
-					n = 1.0;
-				}
-				else { 
-					n = POSTransitions.getLabel(currentTag, nextTag) + 1.0; 
-					POSTransitions.removeDirected(currentTag, nextTag);
-				}
-				// Insert a directed edge with 1 more than before
-				POSTransitions.insertDirected(currentTag, nextTag, n);
 				// Reset currentTag to nextTag
 				currentTag = nextTag;
 			}
@@ -180,7 +190,7 @@ public class BigramModeler {
 		
 		//System.out.println("\nI just went through sentence.");
 		for (HashMap<String, String> frame : backtraces) {
-			//System.out.println(frame);
+			System.out.println(frame);
 		}
 		
 		// Get the best end POS.
