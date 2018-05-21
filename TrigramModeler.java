@@ -85,7 +85,7 @@ public class TrigramModeler {
 				Double n = n1n2graph.getLabel(n2Vertex, n3Vertex); 
 				n1n2graph.removeDirected(n2Vertex, n3Vertex);
 				n1n2graph.insertDirected(n2Vertex, n3Vertex, n + 1.0);
-				System.out.println(n1Vertex + " + " + n2Vertex + " + " + n3Vertex + " = " + n);
+//				System.out.println(n1Vertex + " + " + n2Vertex + " + " + n3Vertex + " = " + n);
 				// Reset currentTag to nextTag
 				n1Vertex = n2Vertex;
 				n2Vertex = n3Vertex;
@@ -141,20 +141,22 @@ public class TrigramModeler {
 	public static String viterbi(ArrayList data, String sentenceLine) {
 		HashMap<String, HashMap<String, Double>> POSWords = 
 				(HashMap<String, HashMap<String, Double>>)data.get(0);
-		AdjacencyMapGraph<String, Double> POSTransitions = 
-				(AdjacencyMapGraph<String, Double>)data.get(1);
+		AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>> POSTransitions = 
+				(AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>)data.get(1);
 		// Allocate memory to stuff that we need.
-		HashMap<String, Double> currentScores, nextScores; 
+		HashMap<List<String>,Double> currentScores, nextScores; 
 		HashMap<String, String> thisFrame, nextLayer;
 		ArrayList<HashMap<String, String>> backtraces;
 		Double currentScore, transitionScore, observationScore, nextScore;
-		Iterator<String> neighborPOSs;
+		Iterator<String> n2neighborPOSs;
 		String[] splitSentenceLine;
 		
 		// Create required data structures for testing files, regenerate each line
-		currentScores = new HashMap<String, Double>(); 
-		currentScores.put(sentenceStarter, 0.0);
-		nextScores = new HashMap<String, Double>();
+		currentScores = new HashMap<List<String>,Double>();
+		ArrayList<String> initialList = 
+				new ArrayList<String>(Arrays.asList(sentenceStarter, sentenceBridge));
+		currentScores.put(initialList, 0.0);
+		nextScores = new HashMap<List<String>,Double>();
 		backtraces = new ArrayList<HashMap<String, String>>();
 		
 		// Iterate through each line in the sentence.
@@ -162,31 +164,37 @@ public class TrigramModeler {
 		for (String nextWord : splitSentenceLine) {
 			// Make new backpointer frame for this word.
 			thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
-			nextScores = new HashMap<String, Double>();
+			nextScores = new HashMap<List<String>,Double>();
 			// Iterate through current scores.
-			for (String currentPOS : currentScores.keySet()) {
+			for (List<String> n1n2list : currentScores.keySet()) {
+				String n1Vertex = n1n2list.get(0); 
+				String n2Vertex = n1n2list.get(1);
 				// Making a score for the current state to the next state with the next word.
-				currentScore = currentScores.get(currentPOS);
-				neighborPOSs = POSTransitions.outNeighbors(currentPOS).iterator();
-				while (neighborPOSs.hasNext()) {
-					String nextPOS = neighborPOSs.next();
-					transitionScore = POSTransitions.getLabel(currentPOS, nextPOS);
+				currentScore = currentScores.get(n1Vertex).get(n2Vertex);
+				AdjacencyMapGraph<String,Double> n1n2graph = new AdjacencyMapGraph<String,Double>();
+				n2neighborPOSs = n1n2graph.outNeighbors(n2Vertex).iterator();
+				while (n2neighborPOSs.hasNext()) {
+					String n3Vertex = n2neighborPOSs.next();
+					transitionScore = n1n2graph.getLabel(n2Vertex, n3Vertex);
 					// If the word has never been used as this type, give it a -10.0 score.
 					observationScore = nullScore;
 					// If the word has been used before as this POS, give it an appropriate score.
 					if (POSWords.keySet().contains(nextWord)) {
-						if (POSWords.get(nextWord).keySet().contains(nextPOS)) { 
-							observationScore = POSWords.get(nextWord).get(nextPOS);
+						if (POSWords.get(nextWord).keySet().contains(n3Vertex)) { 
+							observationScore = POSWords.get(nextWord).get(n3Vertex);
 						}
 					}
 					nextScore = currentScore + transitionScore + observationScore;
 					// If you haven't seen this next state before, put in your score for the next state
-					if (nextScores.get(nextPOS) == null || nextScores.get(nextPOS) <= nextScore) {
-						nextScores.put(nextPOS, nextScore);
-						thisFrame.put(nextPOS, currentPOS);
+					
+					if (nextScores.get(n3Vertex) == null){
+						nextScores.put(n3Vertex, nextScore);
+						thisFrame.put(n3Vertex, n2Vertex);
+					}
+					else {
+						(nextScores.get(n3Vertex) <= nextScore);
 					}
 				}
-				
 			}
 			// Reset states and scores after you've iterated. Clear and put, rather than set=.
 			currentScores.clear();
