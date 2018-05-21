@@ -5,7 +5,7 @@ public class TrigramModeler {
 	// Define where input files come from. Simple is the boring file, brown is the complex file.
 	static final String textURL = "inputs/ps5/brown";
 	static final String sentenceStarter = "#";
-	static final String sentenceBridge = "Q";
+	static final String sentenceBridge = "$";
 	static final Double nullScore = -9.5;
 	
 	public static ArrayList training(String sentenceURL, String tagURL) throws IOException {
@@ -145,8 +145,8 @@ public class TrigramModeler {
 				(AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>)data.get(1);
 		// Allocate memory to stuff that we need.
 		AdjacencyMapGraph<String,Double> currentScores, nextScores = new AdjacencyMapGraph<String,Double>(); 
-		HashMap<String, String> thisFrame, nextLayer;
-		ArrayList<HashMap<String, String>> backtraces;
+		AdjacencyMapGraph<String, String> thisFrame, nextLayer;
+		ArrayList<AdjacencyMapGraph<String, String>> backtraces;
 		Double currentScore, transitionScore, observationScore, nextScore;
 		Iterator<String> n2neighborPOSs;
 		String[] splitSentenceLine;
@@ -154,13 +154,13 @@ public class TrigramModeler {
 		// Create required data structures for testing files, regenerate each line
 		currentScores = new AdjacencyMapGraph<String,Double>();
 		ModelerFunctions.insertDirectedWithVertices(sentenceStarter, sentenceBridge, 0.0, currentScores);
-		backtraces = new ArrayList<HashMap<String, String>>();
+		backtraces = new ArrayList<AdjacencyMapGraph<String, String>>();
 		
 		// Iterate through each line in the sentence.
 		splitSentenceLine = sentenceLine.split(" ");
 		for (String nextWord : splitSentenceLine) {
 			// Make new backpointer frame for this word.
-			thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
+			thisFrame = new AdjacencyMapGraph<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
 			nextScores = new AdjacencyMapGraph<String,Double>();
 			// Iterate through current scores.
 			for (String n1Vertex : currentScores.vertices()) {
@@ -192,13 +192,14 @@ public class TrigramModeler {
 						}
 						nextScore = currentScore + transitionScore + observationScore;						
 						// Ensure that vertices exist.
-						if (!nextScores.hasVertex(n2Vertex)) { nextScores.insertVertex(n2Vertex); }
-						if (!nextScores.hasVertex(n3Vertex)) { nextScores.insertVertex(n3Vertex); }
+						if (!nextScores.hasVertex(n2Vertex)) { nextScores.insertVertex(n2Vertex); thisFrame.insertVertex(n2Vertex); }
+						if (!nextScores.hasVertex(n3Vertex)) { nextScores.insertVertex(n3Vertex); thisFrame.insertVertex(n3Vertex); }
 						// If check passes, super.
 						if (nextScores.getLabel(n2Vertex, n3Vertex) == null || nextScores.getLabel(n2Vertex, n3Vertex) <= nextScore) {
 							nextScores.removeDirected(n2Vertex, n3Vertex);
 							nextScores.insertDirected(n2Vertex, n3Vertex, nextScore);
-							thisFrame.put(n3Vertex, n2Vertex);
+							thisFrame.removeDirected(n2Vertex, n3Vertex);
+							thisFrame.insertDirected(n2Vertex, n3Vertex, n1Vertex);
 						}
 					}
 				}
@@ -211,36 +212,40 @@ public class TrigramModeler {
 		// BACKTRACE! Generate array POS, iterate to generate a string, copy string into an output file.
 		System.out.println("\nI just went through sentence " + sentenceNumber + ".");
 		// Get initial values for n1 and n2.
-		String n1best = null, n2best = null;
-		Iterator<String> n1bestIterator = nextScores.vertices().iterator();
-		while (n1best == null || n2best == null) {
-			n1best = n1bestIterator.next();
-			Iterator<String> n2bestIterator = nextScores.outNeighbors(n1best).iterator();
-			if (n2bestIterator.hasNext()) {
-				n2best = nextScores.outNeighbors(n1best).iterator().next();
+		String n2best = null, n3best = null;
+		Iterator<String> n2bestIterator = nextScores.vertices().iterator();
+		while (n2best == null || n3best == null) {
+			n2best = n2bestIterator.next();
+			Iterator<String> n3bestIterator = nextScores.outNeighbors(n2best).iterator();
+			if (n3bestIterator.hasNext()) {
+				n3best = nextScores.outNeighbors(n2best).iterator().next();
 			}
 		}
 		// Get the best end POS.
-		Double bestScore = nextScores.getLabel(n1best, n2best);
-		for (String n1current : nextScores.vertices()) {
-			for (String n2current : nextScores.outNeighbors(n1current)) {
-				if (nextScores.getLabel(n1current, n2current) > bestScore) {
-					n1best = n1current;
+		Double bestScore = nextScores.getLabel(n2best, n3best);
+		for (String n2current : nextScores.vertices()) {
+			for (String n3current : nextScores.outNeighbors(n2current)) {
+				if (nextScores.getLabel(n2current, n3current) > bestScore) {
 					n2best = n2current;
-					bestScore = nextScores.getLabel(n1current, n2current);
+					n3best = n3current;
+					bestScore = nextScores.getLabel(n2current, n3current);
 				}
 			}
 		}
 		
-		String tracingPOS = n2best;
+		String n3tracing = n3best;
+		String n2tracing = n2best;
+		String n1tracing;
 		
 		// Generate the list.
 		ArrayList<String> backtracedListPOS = new ArrayList<String>();
 		int layersBack = 0;
-		while (tracingPOS != sentenceBridge) {
-			backtracedListPOS.add(tracingPOS);
+		while (n2tracing != sentenceStarter) {
+			backtracedListPOS.add(n3tracing);
 			nextLayer = backtraces.get(backtraces.size() - 1 - layersBack);
-			tracingPOS = nextLayer.get(tracingPOS);
+			n1tracing = nextLayer.getLabel(n2tracing, n3tracing);
+			n3tracing = n2tracing;
+			n2tracing = n1tracing;
 			layersBack ++;
 		}
 						
