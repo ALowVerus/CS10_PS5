@@ -144,7 +144,7 @@ public class TrigramModeler {
 		AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>> POSTransitions = 
 				(AdjacencyMapGraph<String, AdjacencyMapGraph<String, Double>>)data.get(1);
 		// Allocate memory to stuff that we need.
-		HashMap<List<String>,Double> currentScores, nextScores; 
+		AdjacencyMapGraph<String,Double> currentScores, nextScores = new AdjacencyMapGraph<String,Double>(); 
 		HashMap<String, String> thisFrame, nextLayer;
 		ArrayList<HashMap<String, String>> backtraces;
 		Double currentScore, transitionScore, observationScore, nextScore;
@@ -152,11 +152,8 @@ public class TrigramModeler {
 		String[] splitSentenceLine;
 		
 		// Create required data structures for testing files, regenerate each line
-		currentScores = new HashMap<List<String>,Double>();
-		ArrayList<String> initialList = 
-				new ArrayList<String>(Arrays.asList(sentenceStarter, sentenceBridge));
-		currentScores.put(initialList, 0.0);
-		nextScores = new HashMap<List<String>,Double>();
+		currentScores = new AdjacencyMapGraph<String,Double>();
+		ModelerFunctions.insertDirectedWithVertices(sentenceStarter, sentenceBridge, 0.0, currentScores);
 		backtraces = new ArrayList<HashMap<String, String>>();
 		
 		// Iterate through each line in the sentence.
@@ -164,41 +161,42 @@ public class TrigramModeler {
 		for (String nextWord : splitSentenceLine) {
 			// Make new backpointer frame for this word.
 			thisFrame = new HashMap<String, String>(); // KEY:VALUE = NEXT_POS:CURRENT_POS
-			nextScores = new HashMap<List<String>,Double>();
+			nextScores = new AdjacencyMapGraph<String,Double>();
 			// Iterate through current scores.
-			for (List<String> n1n2list : currentScores.keySet()) {
-				String n1Vertex = n1n2list.get(0); 
-				String n2Vertex = n1n2list.get(1);
-				// Making a score for the current state to the next state with the next word.
-				currentScore = currentScores.get(n1Vertex).get(n2Vertex);
-				AdjacencyMapGraph<String,Double> n1n2graph = new AdjacencyMapGraph<String,Double>();
-				n2neighborPOSs = n1n2graph.outNeighbors(n2Vertex).iterator();
-				while (n2neighborPOSs.hasNext()) {
-					String n3Vertex = n2neighborPOSs.next();
-					transitionScore = n1n2graph.getLabel(n2Vertex, n3Vertex);
-					// If the word has never been used as this type, give it a -10.0 score.
-					observationScore = nullScore;
-					// If the word has been used before as this POS, give it an appropriate score.
-					if (POSWords.keySet().contains(nextWord)) {
-						if (POSWords.get(nextWord).keySet().contains(n3Vertex)) { 
-							observationScore = POSWords.get(nextWord).get(n3Vertex);
+			for (String n1Vertex : currentScores.vertices()) {
+				for (String n2Vertex : currentScores.outNeighbors(n1Vertex)) {
+					// Making a score for the current state to the next state with the next word.
+					currentScore = currentScores.getLabel(n1Vertex, n2Vertex);
+					AdjacencyMapGraph<String,Double> n1n2graph = POSTransitions.getLabel(n1Vertex, n2Vertex);
+					n2neighborPOSs = n1n2graph.outNeighbors(n2Vertex).iterator();
+					while (n2neighborPOSs.hasNext()) {
+						String n3Vertex = n2neighborPOSs.next();
+						transitionScore = n1n2graph.getLabel(n2Vertex, n3Vertex);
+						// If the word has never been used as this type, give it a -10.0 score.
+						observationScore = nullScore;
+						// If the word has been used before as this POS, give it an appropriate score.
+						if (POSWords.keySet().contains(nextWord)) {
+							if (POSWords.get(nextWord).keySet().contains(n3Vertex)) { 
+								observationScore = POSWords.get(nextWord).get(n3Vertex);
+							}
 						}
-					}
-					nextScore = currentScore + transitionScore + observationScore;
-					// If you haven't seen this next state before, put in your score for the next state
-					
-					if (nextScores.get(n3Vertex) == null){
-						nextScores.put(n3Vertex, nextScore);
-						thisFrame.put(n3Vertex, n2Vertex);
-					}
-					else {
-						(nextScores.get(n3Vertex) <= nextScore);
+						nextScore = currentScore + transitionScore + observationScore;						
+						// Ensure that vertices exist.
+						if (!nextScores.hasVertex(n2Vertex)) { nextScores.insertVertex(n2Vertex); }
+						if (!nextScores.hasVertex(n3Vertex)) { nextScores.insertVertex(n3Vertex); }
+						System.out.println("n2vertex is " + n2Vertex + ", n3vertex is " + n3Vertex);
+						System.out.println("" + nextScores.getLabel(n2Vertex, n3Vertex));
+						// If check passes, super.
+						if (nextScores.getLabel(n2Vertex, n3Vertex) == null || nextScores.getLabel(n2Vertex, n3Vertex) <= nextScore) {
+							nextScores.removeDirected(n2Vertex, n3Vertex);
+							nextScores.insertDirected(n2Vertex, n3Vertex, nextScore);
+							thisFrame.put(n3Vertex, n2Vertex);
+						}
 					}
 				}
 			}
 			// Reset states and scores after you've iterated. Clear and put, rather than set=.
-			currentScores.clear();
-			currentScores.putAll(nextScores); // This doesn't trigger ConcurrentModificationException.
+			currentScores = nextScores; // This doesn't trigger ConcurrentModificationException.
 			backtraces.add(thisFrame);
 		}
 		
@@ -210,7 +208,20 @@ public class TrigramModeler {
 		}
 		
 		// Get the best end POS.
-		String tracingPOS = ModelerFunctions.getBestFromHashMapStringDouble(nextScores);
+		String n1best = nextScores.vertices().iterator().next();
+		String n2best = nextScores.outNeighbors(n1best).iterator().next();
+		Double bestScore = nextScores.getLabel(n1best, n2best);
+		for (String n1current : nextScores.vertices()) {
+			for (String n2current : nextScores.outNeighbors(n1current)) {
+				if (nextScores.getLabel(n1current, n2current) > bestScore) {
+					n1best = n1current;
+					n2best = n2current;
+					bestScore = nextScores.getLabel(n1current, n2current);
+				}
+			}
+		}
+		
+		String tracingPOS = n2best;
 		
 		// Generate the list.
 		ArrayList<String> backtracedListPOS = new ArrayList<String>();
@@ -227,6 +238,7 @@ public class TrigramModeler {
 		for (int i = 0; i < backtracedListPOS.size(); i ++) {
 			backtracedStringPOS += backtracedListPOS.get(backtracedListPOS.size() - 1 - i) + " ";
 		}
+		
 		// Write backtraced string into an output file.
 		return backtracedStringPOS;
 	}

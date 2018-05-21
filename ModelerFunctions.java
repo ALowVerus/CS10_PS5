@@ -47,6 +47,11 @@ public class ModelerFunctions {
 		}
 		return bestPOS;
 	}
+	public static <V, E> void insertDirectedWithVertices(V u, V v, E n, AdjacencyMapGraph<V,E> map) {
+		if (!map.hasVertex(u)) { map.insertVertex(u); }
+		if (!map.hasVertex(v)) { map.insertVertex(v); }
+		map.insertDirected(u, v, n);
+	}
 	/*
 	 * CHECK TAGS AGAINST GIVEN.
 	 */
