@@ -1,7 +1,7 @@
 import java.io.*;
 import java.util.*;
 
-public class BigramModelerAidan {
+public class BigramModeler {
 	// Define where input files come from. Simple is the boring file, brown is the complex file.
 	static final String textURL = "inputs/ps5/brown";
 	static final String sentenceStarter = "#";
